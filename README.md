@@ -12,7 +12,9 @@ BPM Utils is a package providing a number of different helper scripts for settin
 
 ## Installation
 
-Currently all BPM Utilities are simple bash scripts. This means you are able to simply clone this repository and place these scripts wherever you would like. Additionally pre-made packages are available for the following Linux distributions:
+Currently all BPM Utilities are simple bash scripts. This means you are able to simply clone this repository and place these scripts wherever you would like. Additionally pre-made packages are available for the following package managers: \
+BPM: https://gitlab.com/bubble-package-manager/bpm-utils-bpm \
+Pacman: https://gitlab.com/bubble-package-manager/bpm-utils-pacman
 
 ## Package Creation using BPM Utils
 
