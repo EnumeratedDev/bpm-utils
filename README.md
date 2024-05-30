@@ -48,7 +48,7 @@ bpm-package <filename.bpm>
 3) If you would like to bundle patches or other files with your source package place them in the 'source-files' directory. They will be extracted to the same location as the source.sh file during compilation
 4) You need to edit your 'source.sh' file, the default source.sh template should explain the basic process of compiling your program
 5) Your goal is to download your program's source code with either git, wget, curl, etc. and put the binaries under a folder called 'output' in the root of the temp directory. There is a simple example script with helpful comments in the htop-src test package
-6) When you are done making your source.sh script run the following to create a package archive
+6) When you are done making your source.sh script run the following to create a package archive. You may also append the -c flag to compile the package and create a binary package as well
 ```
 bpm-package <filename.bpm>
 ```

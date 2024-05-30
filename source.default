@@ -1,24 +1,32 @@
 # This is the source.sh script. It is executed by BPM in a temporary directory when compiling a source package
-# BPM expects there to be an 'output' directory under the root of the temporary directory after this script finishes executing, otherwise your program may not be correctly installed
-# It is recommended you create the 'output' directory along with a 'source' directory in the root of the temporary directory like this
-echo "Compiling ${NAME}..."
-# Creating SOURCE and OUTPUT variables
-SOURCE="$(pwd)"/source
-OUTPUT="$(pwd)"/output
-# Creating the 'source' and 'output' directories
-mkdir "$SOURCE"
-mkdir "$OUTPUT"
-# Creating DOWNLOAD and FILENAME variables
-DOWNLOAD="https://www.my-url.com/file.tar.gz"
+# BPM Expects the source code to be extracted into the automatically created 'source' directory which can be accessed using $BPM_SOURCE
+# BPM Expects the output files to be present in the automatically created 'output' directory which can be accessed using $BPM_OUTPUT
+
+DOWNLOAD="https://wwww.my-url.com/file.tar.gz"
 FILENAME="${DOWNLOAD##*/}"
-# Downloading files
-wget "$DOWNLOAD"
-# Extracting archive into 'source'
-tar -xvf "$FILENAME" --strip-components=1 -C "$SOURCE"
-# Changing directory into 'source'
-cd "$SOURCE"
-# Configuring and compiling ${NAME}
-./configure --prefix=/usr
-make
-make install DESTDIR="$OUTPUT"
-echo "${NAME} compilation complete!"
+
+# The prepare function is executed in the root of the temp directory
+# This function is used for downloading files and putting them into the correct location
+prepare() {
+  wget "$DOWNLOAD"
+  tar -xvf nano-"$FILENAME" --strip-components=1 -C "$BPM_SOURCE"
+}
+
+# The build function is executed in the source directory
+# This function is used to compile the source code
+build() {
+  ./configure --prefix=/usr
+  make
+}
+
+# The check function is executed in the source directory
+# This function is used to run tests to verify the package has been compiled correctly
+check() {
+  make check
+}
+
+# The package function is executed in the source directory
+# This function is used to move the compiled files into the output directory
+package() {
+  make DESTDIR="$BPM_OUTPUT" install
+}

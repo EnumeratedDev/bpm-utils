@@ -5,7 +5,14 @@ then
   exit 1
 fi
 
-output=$1
+while getopts "c" flag; do
+  case "$flag" in
+    c) CONVERT=true;;
+    *) exit 1;;
+  esac
+done
+
+output="${@:$OPTIND:1}"
 
 if [[ ! "$output" =~ ^[a-z.A-Z0-9_-]{1,}$ ]]; then
   echo "Invalid output name! The name must only contain letters, numbers, hyphens or underscores!"
@@ -67,3 +74,7 @@ fi
 echo "Creating $type package as $output"
 
 tar -czf "$output" "${toCompress[@]}"
+
+if "$CONVERT" && [[ "$type" == "source" ]]; then
+  bpm-convert "$output"
+fi
