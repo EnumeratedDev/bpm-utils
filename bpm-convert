@@ -1,6 +1,10 @@
 #!/bin/bash
 
 DIR="$PWD"
+ARCH="$2"
+if [ -z "$ARCH" ]; then
+  ARCH=$(uname -m)
+fi
 
 if ! [ -f "$1" ]; then
   echo "$1 is not a path to a file"
@@ -92,10 +96,10 @@ cd "$BPM_WORKDIR"
 mv output/ files/
 touch pkg.info
 echo "${PKGINFO_FILE}" > pkg.info
-sed -i "s/architecture:.*/architecture: $(uname -m)/g" pkg.info
+sed -i "s/architecture:.*/architecture: ${ARCH}/g" pkg.info
 sed -i 's/type:.*/type: binary/g' pkg.info
 tar -czpf "$BPM_PKG_NAME".tar.gz files pkg.info
-mv "$BPM_PKG_NAME".tar.gz "$DIR"/"$BPM_PKG_NAME"-"$(uname -m)".bpm
+mv "$BPM_PKG_NAME".tar.gz "$DIR"/"$BPM_PKG_NAME"-"$ARCH".bpm
 echo "Package conversion complete!"
 
 rm -rf "$TEMPDIR" root

@@ -5,9 +5,10 @@ then
   exit 1
 fi
 
-while getopts "c" flag; do
+while getopts "ca:" flag; do
   case "$flag" in
     c) CONVERT=true;;
+    a) ARCHITECTURE="${OPTARG}";;
     *) exit 1;;
   esac
 done
@@ -75,6 +76,6 @@ echo "Creating $type package as $output"
 
 tar -czf "$output" "${toCompress[@]}"
 
-if "$CONVERT" && [[ "$type" == "source" ]]; then
-  bpm-convert "$output"
+if [ ! -z "$CONVERT" ] && "$CONVERT" && [[ "$type" == "source" ]]; then
+  bpm-convert "$output" "$ARCHITECTURE"
 fi
