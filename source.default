@@ -9,7 +9,7 @@ FILENAME="${DOWNLOAD##*/}"
 # This function is used for downloading files and putting them into the correct location
 prepare() {
   wget "$DOWNLOAD"
-  tar -xvf nano-"$FILENAME" --strip-components=1 -C "$BPM_SOURCE"
+  tar -xvf "$FILENAME" --strip-components=1 -C "$BPM_SOURCE"
 }
 
 # The build function is executed in the source directory
