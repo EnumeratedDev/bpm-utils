@@ -1,39 +1,53 @@
 #!/bin/bash
 
+while getopts "ksa:" o; do
+    case "${o}" in
+        a) ARCH="$OPTARG";;
+        k) KEEP=true;;
+        s) SKIPCHECK=true;;
+        *) exit 1;;
+    esac
+done
+
+PACKAGE="${@:$OPTIND:1}"
+
 DIR="$PWD"
-ARCH="$2"
 if [ -z "$ARCH" ]; then
   ARCH=$(uname -m)
 fi
 
-if ! [ -f "$1" ]; then
-  echo "$1 is not a path to a file"
+if ! [ -f "$PACKAGE" ]; then
+  echo "$PACKAGE is not a path to a file"
   exit 1
 fi
-if ! file "$1" | grep -q 'gzip compressed data'; then
-  echo "$1 is not a BPM package"
+if ! file "$PACKAGE" | grep -q 'gzip compressed data'; then
+  echo "$PACKAGE is not a BPM package"
   exit 1
 fi
-if ! tar -tf "$1" | grep -q 'source.sh'; then
-  echo "$1 is not a BPM source package"
+if ! tar -tf "$PACKAGE" | grep -q 'source.sh'; then
+  echo "$PACKAGE is not a BPM source package"
   exit 1
 fi
-echo "$Converting $1..."
+echo "$Converting $PACKAGE..."
 
-PKGINFO_FILE=$(tar -axf "$1" pkg.info -O)
+PKGINFO_FILE=$(tar -axf "$PACKAGE" pkg.info -O)
 declare -A PKGINFO
 while read line; do
   PKGINFO[$(echo -n "$line" | cut -d":" -f1 | xargs)]=$(echo -n "$line" | cut -d":" -f2 | xargs)
-done < <(tar -axf "$1" pkg.info -O)
+done < <(tar -axf "$PACKAGE" pkg.info -O)
 
 TEMPDIR="/var/tmp/bpm_source_${PKGINFO[name]}"
-if [ -d "$TEMPDIR" ]; then
+if [ -d "$TEMPDIR" ] && [ -z "$KEEP" ]; then
   rm -rf "$TEMPDIR"
 fi
 mkdir -p "$TEMPDIR"
 mkdir -p "$TEMPDIR"/source
 mkdir -p "$TEMPDIR"/output
-tar -xf "$1" -C "$TEMPDIR" source.sh
+tar -xf "$PACKAGE" -C "$TEMPDIR" source.sh
+if tar -xf "$PACKAGE" -C "$TEMPDIR" source-files &> /dev/null; then
+  mv "$TEMPDIR"/source-files/* "$TEMPDIR"/
+  rm -d "$TEMPDIR"/source-files
+fi
 
 cd "$TEMPDIR"
 
@@ -56,7 +70,7 @@ set +a
 
 if [[ $(type -t prepare) == function ]]; then
   echo "Running prepare() function..."
-  fakeroot bash -e -c prepare
+  bash -e -c prepare
   if [ $? -ne 0 ]; then
     echo "Failed to run prepare() function in source.sh"
     exit 1
@@ -65,39 +79,42 @@ fi
 cd "$BPM_SOURCE"
 if [[ $(type -t build) == function ]]; then
   echo "Running build() function..."
-  fakeroot bash -e -c build
+  bash -e -c build
   if [ $? -ne 0 ]; then
     echo "Failed to run build() function in source.sh"
     exit 1
   fi
 fi
 cd "$BPM_SOURCE"
-if [[ $(type -t check) == function ]]; then
+if [[ $(type -t check) == function ]] && [ -z "$SKIPCHECK" ]; then
   echo "Running check() function..."
-  fakeroot bash -e -c check
+  check
   if [ $? -ne 0 ]; then
     echo "Failed to run check() function in source.sh"
     exit 1
   fi
 fi
+cd "$BPM_SOURCE"
 if ! [[ $(type -t package) == function ]]; then
   echo "Failed to locate package() function in source.sh"
   exit 1
 fi
 echo "Running package() function..."
-fakeroot bash -e -c package
+touch "$TEMPDIR"/fakeroot_file
+fakeroot -s "$TEMPDIR"/fakeroot_file bash -e -c package
 if [ $? -ne 0 ]; then
   echo "Failed to run package() function in source.sh"
   exit 1
 fi
 cd "$BPM_WORKDIR"
-mv output/ files/
 touch pkg.info
 echo "${PKGINFO_FILE}" > pkg.info
 sed -i "s/architecture:.*/architecture: ${ARCH}/g" pkg.info
 sed -i 's/type:.*/type: binary/g' pkg.info
-tar -czpf "$BPM_PKG_NAME".tar.gz files pkg.info
-mv "$BPM_PKG_NAME".tar.gz "$DIR"/"$BPM_PKG_NAME"-"$ARCH".bpm
+fakeroot -i "$TEMPDIR"/fakeroot_file -s "$TEMPDIR"/fakeroot_file tar -czpf "$BPM_PKG_NAME".tar.gz pkg.info output --transform 's/output/files/'
+mv "$BPM_PKG_NAME".tar.gz "$DIR"/"$BPM_PKG_NAME"-"$BPM_PKG_VERSION"-"$ARCH".bpm
 echo "Package conversion complete!"
 
-rm -rf "$TEMPDIR" root
+if [ -z "$KEEP" ]; then
+  rm -rf "$TEMPDIR"
+fi
