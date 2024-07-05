@@ -11,6 +11,7 @@ usage () {
   echo "bpm-setup -l <licenses> | Set the package licenses (Optional)"
   echo "bpm-setup -t <binary/source> | Set the package type to binary or source (Defaults to binary)"
   echo "bpm-setup -s <source template file> | Use a default template file (Defaults to /etc/bpm-utils/source.default)"
+  echo "bpm-setup -g <true/false> | Create git repository (Defaults to true)"
 }
 
 if [ $# -eq 0 ]; then
@@ -25,8 +26,9 @@ VERSION="1.0"
 #LICENSE="Your project's license (Optional)"
 TYPE="binary"
 SOURCE_FILE="/etc/bpm-utils/source.default"
+GIT=true
 
-while getopts "D:n:d:v:u:l:t:s:y" o; do
+while getopts "D:n:d:v:u:l:t:s:g:y" o; do
   case "${o}" in
     D)
       DIRECTORY="${OPTARG}"
@@ -54,6 +56,16 @@ while getopts "D:n:d:v:u:l:t:s:y" o; do
       ;;
     s)
       SOURCE_FILE="$(realpath ${OPTARG})"
+      ;;
+    g)
+      if [[ "${OPTARG}" == true ]]; then
+        GIT=TRUE
+      elif [[ "${OPTARG}" == false ]]; then
+        GIT=false
+      else
+        echo "${OPTARG} is not a true or false value!"
+        exit 1
+      fi
       ;;
     *)
       usage
@@ -99,6 +111,9 @@ if [ -z "${CONFIRM}" ]; then
   fi
   
   echo "Package type: $TYPE"
+  if [[ "$TYPE" == "source" ]]; then
+    echo "Create Git repository: $GIT"
+  fi
   read -p "Create package directory? [y/N]: " CREATE
   case $CREATE in
     [Yy]* )
@@ -145,6 +160,10 @@ else
   else
     echo "Source file at ${SOURCE_FILE} does not exist! Creating empty source.sh instead..."
     touch source.sh
+  fi
+  if $GIT ; then
+    git init
+    echo -e "*.bpm\n.gitignore" > .gitignore
   fi
   echo "Package directory created successfully!"
   echo "Make sure to edit the pkg.info file with the appropriate information for your package"
