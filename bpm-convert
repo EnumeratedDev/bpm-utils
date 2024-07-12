@@ -30,12 +30,32 @@ if ! tar -tf "$PACKAGE" | grep -q 'source.sh'; then
 fi
 echo "$Converting $PACKAGE..."
 
-PKGINFO_FILE=$(tar -axf "$PACKAGE" pkg.info -O)
 declare -A PKGINFO
-while read line; do
-  PKGINFO[$(echo -n "$line" | cut -d":" -f1 | xargs)]=$(echo -n "$line" | cut -d":" -f2 | xargs)
-done < <(tar -axf "$PACKAGE" pkg.info -O)
+# Declare and run Read Package Information function
+function ReadPkgInfo() {
+  local BACK="$PWD"
+  cd "$DIR"
+  if [ $# -eq 0 ]; then
+    FILE=pkg.info
+    PKGINFO_FILE=$(tar -xf "$PACKAGE" pkg.info -O)
+  else
+    FILE=pkg.info."$1"
+  fi
+  
+  if ! tar -tf "$PACKAGE" "$FILE"; then
+    echo "Could not find $FILE in $PACKAGE"
+    exit 1
+  fi
+  PKGINFO_FILE=$(tar -xf "$PACKAGE" "$FILE" -O)
+  
+  while read line; do
+    PKGINFO[$(echo -n "$line" | cut -d":" -f1 | xargs)]=$(echo -n "$line" | cut -d":" -f2 | xargs)
+  done < <(tar -xf "$PACKAGE" "$FILE" -O)
+  cd "$BACK"
+}
+ReadPkgInfo
 
+# Creating temporary compilation directory structure
 TEMPDIR="/var/tmp/bpm_source_${PKGINFO[name]}"
 if [ -d "$TEMPDIR" ] && [ -z "$KEEP" ]; then
   rm -rf "$TEMPDIR"
@@ -51,69 +71,91 @@ fi
 
 cd "$TEMPDIR"
 
-export BPM_PKG_NAME="${PKGINFO[name]}"
-export BPM_PKG_DESC="${PKGINFO[description]}"
-export BPM_PKG_VERSION="${PKGINFO[version]}"
-export BPM_PKG_URL="${PKGINFO[url]}"
-export BPM_PKG_ARCH="${PKGINFO[architecture]}"
-IFS=',' read -r -a BPM_PKG_DEPENDS <<< "${PKGINFO[depends]}"
-IFS=',' read -r -a BPM_PKG_MAKE_DEPENDS <<< "${PKGINFO[make_depends]}"
-export BPM_PKG_DEPENDS
-export BPM_PKG_MAKE_DEPENDS
-export BPM_WORKDIR="$TEMPDIR"
-export BPM_SOURCE="$TEMPDIR"/source
-export BPM_OUTPUT="$TEMPDIR"/output
+# Declare and run Set Variables function
+function SetVariables() {
+  export BPM_PKG_NAME="${PKGINFO[name]}"
+  export BPM_PKG_DESC="${PKGINFO[description]}"
+  export BPM_PKG_VERSION="${PKGINFO[version]}"
+  export BPM_PKG_URL="${PKGINFO[url]}"
+  export BPM_PKG_ARCH="${PKGINFO[architecture]}"
+  IFS=',' read -r -a BPM_PKG_DEPENDS <<< "${PKGINFO[depends]}"
+  IFS=',' read -r -a BPM_PKG_MAKE_DEPENDS <<< "${PKGINFO[make_depends]}"
+  export BPM_PKG_DEPENDS
+  export BPM_PKG_MAKE_DEPENDS
+  export BPM_WORKDIR="$TEMPDIR"
+  export BPM_SOURCE="$TEMPDIR"/source
+  export BPM_OUTPUT="$TEMPDIR"/output
+}
+SetVariables
 
+# Declare Run Package Function function
+function RunPkgFunction() {
+  if [ $# -eq 0 ]; then
+    echo "No function name given"
+    exit 1
+  fi
+  func="$1"
+
+  if [[ $(type -t "$func") == function ]]; then
+    echo "Running ${func}() function..."
+    bash -e -c "$func"
+    if [ $? -ne 0 ]; then
+      echo "Failed to run ${func}() function in source.sh"
+      exit 1
+    fi
+  fi
+}
+
+# Read source.sh file and source functions
 set -a
 source source.sh
 set +a
 
-if [[ $(type -t prepare) == function ]]; then
-  echo "Running prepare() function..."
-  bash -e -c prepare
-  if [ $? -ne 0 ]; then
-    echo "Failed to run prepare() function in source.sh"
-    exit 1
-  fi
-fi
-cd "$BPM_SOURCE"
-if [[ $(type -t build) == function ]]; then
-  echo "Running build() function..."
-  bash -e -c build
-  if [ $? -ne 0 ]; then
-    echo "Failed to run build() function in source.sh"
-    exit 1
-  fi
-fi
-cd "$BPM_SOURCE"
-if [[ $(type -t check) == function ]] && [ -z "$SKIPCHECK" ]; then
-  echo "Running check() function..."
-  check
-  if [ $? -ne 0 ]; then
-    echo "Failed to run check() function in source.sh"
-    exit 1
-  fi
-fi
-cd "$BPM_SOURCE"
-if ! [[ $(type -t package) == function ]]; then
-  echo "Failed to locate package() function in source.sh"
-  exit 1
-fi
-echo "Running package() function..."
-touch "$TEMPDIR"/fakeroot_file
-fakeroot -s "$TEMPDIR"/fakeroot_file bash -e -c package
-if [ $? -ne 0 ]; then
-  echo "Failed to run package() function in source.sh"
-  exit 1
-fi
 cd "$BPM_WORKDIR"
-touch pkg.info
-echo "${PKGINFO_FILE}" > pkg.info
-sed -i "s/architecture:.*/architecture: ${ARCH}/g" pkg.info
-sed -i 's/type:.*/type: binary/g' pkg.info
-fakeroot -i "$TEMPDIR"/fakeroot_file -s "$TEMPDIR"/fakeroot_file tar -czpf "$BPM_PKG_NAME".tar.gz pkg.info output --transform 's/output/files/'
-mv "$BPM_PKG_NAME".tar.gz "$DIR"/"$BPM_PKG_NAME"-"$BPM_PKG_VERSION"-"$ARCH".bpm
-echo "Package conversion complete!"
+RunPkgFunction prepare
+
+cd "$BPM_SOURCE"
+RunPkgFunction build
+
+cd "$BPM_SOURCE"
+RunPkgFunction check
+
+# Packaging all packages
+for func in $(typeset -F | awk '{print $3}' | grep '^package'); do
+  cd "$BPM_SOURCE"
+  if [[ "$func" == "package" ]]; then
+    pkgname="$BPM_PKG_NAME"
+    ReadPkgInfo
+  else
+    pkgname="${func##package-}"
+    ReadPkgInfo "$pkgname"
+  fi
+  SetVariables
+  echo "Running ${func}() function..."
+  touch  "$TEMPDIR"/fakeroot_file_"$pkgname"
+  fakeroot -s "$TEMPDIR"/fakeroot_file_"$pkgname" bash -e -c "$func"
+  if [ $? -ne 0 ]; then
+    echo "Failed to run ${func}() function in source.sh"
+    exit 1
+  fi
+  cd "$BPM_WORKDIR"
+  touch pkg.info
+  if [[ "$pkgname" == "$BPM_PKG_NAME" ]]; then
+    echo "${PKGINFO_FILE}" > pkg.info
+  else
+    echo "${PKGINFO_FILE}" > pkg.info
+  fi
+  echo "${PKGINFO_FILE}" > pkg.info
+  sed -i "s/architecture:.*/architecture: ${ARCH}/g" pkg.info
+  sed -i 's/type:.*/type: binary/g' pkg.info
+  fakeroot -i "$TEMPDIR"/fakeroot_file_"$pkgname" tar -czpf "$pkgname".tar.gz pkg.info output --transform 's/output/files/'
+  mv "$pkgname".tar.gz "$DIR"/"$pkgname"-"$BPM_PKG_VERSION"-"$ARCH".bpm
+  echo "Packaged ${pkgname} successfully!"
+  rm "$TEMPDIR"/fakeroot_file_"$pkgname"
+  rm -r output/
+  mkdir output
+  rm pkg.info
+done
 
 if [ -z "$KEEP" ]; then
   rm -rf "$TEMPDIR"

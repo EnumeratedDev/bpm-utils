@@ -1,0 +1,63 @@
+#!/bin/bash
+
+SCRIPT_PATH=$(realpath "$0")
+SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
+
+DEEP=false
+PKGS=()
+
+while getopts "d" flag; do
+    case "$flag" in
+        d) DEEP=true
+           shopt -s globstar;;
+        *) echo "Unknown flag ${flag}"
+           exit 2;;
+    esac
+done
+
+if [ -z "${@:$OPTIND:1}" ]; then
+  echo "You have not specified a repository"
+  exit 1
+fi
+if ! [ -d "${@:$OPTIND:1}" ]; then
+  echo "The given path is not a directory"
+  exit 1
+fi
+
+if realpath "${@:$OPTIND:1}" &> /dev/null; then
+  REPO=$(realpath "${@:$OPTIND:1}")
+fi
+
+shopt -s nullglob
+
+if ! $DEEP; then
+  for arch in "$REPO"/*/; do
+    for pkg in "$arch"/*.bpm; do
+      info=$(tar -xf "$pkg" pkg.info -O)
+      package=$(echo "$info" | grep 'name: ' | awk '{print $2}')
+      if [[ ${PKGS[@]} =~ "$package" ]]; then
+        echo "The following package was found in more than 1 package archives: ${package}"
+      fi
+      PKGS+=("$package")
+      file="$(realpath -s --relative-to="$REPO" "$pkg")"
+      info+=$'\n'"file: ${file}"
+      info+=$'\n---'
+      echo "$info"
+    done
+  done
+else
+  for arch in "$REPO"/*/; do
+    for pkg in "$arch"/**/*.bpm; do
+      info=$(tar -xf "$pkg" pkg.info -O)
+      package=$(echo "$info" | grep 'name: ' | awk '{print $2}')
+      if [[ ${PKGS[@]} =~ "$package" ]]; then
+        echo "The following package was found in more than 1 package archives: ${package}"
+      fi
+      PKGS+=("$package")
+      file="$(realpath -s --relative-to="$REPO" "$pkg")"
+      info+=$'\n'"file: ${file}"
+      info+=$'\n---'
+      echo "$info"
+    done
+  done
+fi

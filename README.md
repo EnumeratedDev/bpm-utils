@@ -8,14 +8,13 @@ BPM Utils is a package providing a number of different helper scripts for settin
 
 ## Provided Scripts
 - bpm-setup (Creates a directory with the required files for a BPM package)
--  bpm-package (Turns a BPM package directory into a .bpm archive)
+- bpm-package (Turns a BPM package directory into a .bpm archive)
+- bpm-convert (Converts source packages to binary ones)
+- create-repository-data (Generates a repository package data list for unpac)
 
 ## Installation
 
-Currently all BPM Utilities are simple bash scripts. This means you are able to simply clone this repository and place these scripts wherever you would like. Additionally pre-made packages are available for the following package managers: \
-BPM: https://gitlab.com/bubble-package-manager/bpm-utils-bpm \
-Pacman: https://gitlab.com/bubble-package-manager/bpm-utils-pacman
-
+Currently all BPM Utilities are simple bash scripts. This means you are able to simply clone this repository and place these scripts wherever you would like
 ## Package Creation using BPM Utils
 
 Creating a package for BPM with these utilities is simple

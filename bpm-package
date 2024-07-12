@@ -23,7 +23,7 @@ if [[ ! "$output" =~ ^[a-z.A-Z0-9_-]{1,}$ ]]; then
 fi
 
 type="binary"
-toCompress=("pkg.info")
+toCompress=()
 
 echo "Creating package with the name $output..."
 
@@ -73,6 +73,12 @@ else
   echo "pkg.info file not found in $PWD"
   exit 1
 fi
+
+for pkginfo in ./pkg.inf*; do
+  pkginfo=$(basename "$pkginfo")
+  echo "${pkginfo} file found"
+  toCompress+=("$pkginfo")
+done
 
 echo "Creating $type package as $output"
 tar -c --owner=0 --group=0 --no-same-owner -zf "$output" "${toCompress[@]}"
