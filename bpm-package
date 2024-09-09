@@ -5,12 +5,16 @@ then
   exit 1
 fi
 
+if [ -f .compilation-options ]; then
+  source ./.compilation-options
+fi
+
 while getopts "cska:" flag; do
   case "$flag" in
     c) CONVERT=true;;
     k) KEEP=true;;
     s) SKIPCHECK=true;;
-    a) ARCHITECTURE="${OPTARG}";;
+    a) ARCH="${OPTARG}";;
     *) exit 1;;
   esac
 done
@@ -86,10 +90,10 @@ tar -c --owner=0 --group=0 --no-same-owner -zf "$output" "${toCompress[@]}"
 if [ ! -z "$CONVERT" ] && "$CONVERT" && [[ "$type" == "source" ]]; then
   args=()
   if ! [ -z "$KEEP" ]; then
-    args+=("-a" "$ARCHITECTURE")
+    args+=("-a" "$ARCH")
   fi
   if ! [ -z "$SKIPCHECK" ]; then
     args+=("-s")
   fi
-  bpm-convert "${args[@]}" -a "$ARCHITECTURE"  "$output"
+  bpm-convert "${args[@]}" -a "$ARCH"  "$output"
 fi

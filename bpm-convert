@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [ -f .compilation-options ]; then
+  source ./.compilation-options
+fi
+
+echo "$ARCH"
+
 while getopts "ksa:" o; do
     case "${o}" in
         a) ARCH="$OPTARG";;
@@ -118,7 +124,9 @@ cd "$BPM_SOURCE"
 RunPkgFunction build
 
 cd "$BPM_SOURCE"
-RunPkgFunction check
+if [ -z "$SKIPCHECK" ]; then
+  RunPkgFunction check
+fi
 
 # Packaging all packages
 for func in $(typeset -F | awk '{print $3}' | grep '^package'); do

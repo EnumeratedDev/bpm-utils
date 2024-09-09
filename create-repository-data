@@ -1,5 +1,12 @@
 #!/bin/bash
 
+containsElement () {
+  local e match="$1"
+  shift
+  for e; do [[ "$e" == "$match" ]] && return 0; done
+  return 1
+}
+
 SCRIPT_PATH=$(realpath "$0")
 SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
 
@@ -33,14 +40,16 @@ shopt -s nullglob
 if ! $DEEP; then
   for arch in "$REPO"/*/; do
     for pkg in "$arch"/*.bpm; do
-      info=$(tar -xf "$pkg" pkg.info -O)
-      package=$(echo "$info" | grep 'name: ' | awk '{print $2}')
-      if [[ ${PKGS[@]} =~ "$package" ]]; then
+      info="info:"$'\n'
+      info+=$(tar -xf "$pkg" pkg.info -O | sed 's/^/  /g')
+      package=$(echo "$info" | grep 'name: ' | xargs | awk '{print $2}')
+      if containsElement "$package" "${PKGS[@]}"; then
         echo "The following package was found in more than 1 package archives: ${package}"
+        exit 1
       fi
       PKGS+=("$package")
       file="$(realpath -s --relative-to="$REPO" "$pkg")"
-      info+=$'\n'"file: ${file}"
+      info+=$'\n'"download: ${file}"
       info+=$'\n---'
       echo "$info"
     done
