@@ -37,36 +37,38 @@ fi
 
 shopt -s nullglob
 
+create_entry() {
+  if [ $# -eq 0 ]; then
+    return 0
+  fi
+  if ! [ -f "$1" ]; then
+    return 0
+  fi
+  
+  info="info:"$'\n'
+  info+=$(tar -xf "$pkg" pkg.info -O | sed 's/^/  /g')
+  package=$(echo "$info" | grep 'name: ' | xargs | awk '{print $2}')
+  if containsElement "$package" "${PKGS[@]}"; then
+    echo "The following package was found in more than 1 package archives: ${package}"
+    exit 1
+  fi
+  PKGS+=("$package")
+  file="$(realpath -s --relative-to="$REPO" "$pkg")"
+  info+=$'\n'"download: ${file}"
+  info+=$'\n---'
+  echo "$info"
+}
+
 if ! $DEEP; then
   for arch in "$REPO"/*/; do
     for pkg in "$arch"/*.bpm; do
-      info="info:"$'\n'
-      info+=$(tar -xf "$pkg" pkg.info -O | sed 's/^/  /g')
-      package=$(echo "$info" | grep 'name: ' | xargs | awk '{print $2}')
-      if containsElement "$package" "${PKGS[@]}"; then
-        echo "The following package was found in more than 1 package archives: ${package}"
-        exit 1
-      fi
-      PKGS+=("$package")
-      file="$(realpath -s --relative-to="$REPO" "$pkg")"
-      info+=$'\n'"download: ${file}"
-      info+=$'\n---'
-      echo "$info"
+      create_entry "$pkg"
     done
   done
 else
   for arch in "$REPO"/*/; do
     for pkg in "$arch"/**/*.bpm; do
-      info=$(tar -xf "$pkg" pkg.info -O)
-      package=$(echo "$info" | grep 'name: ' | awk '{print $2}')
-      if [[ ${PKGS[@]} =~ "$package" ]]; then
-        echo "The following package was found in more than 1 package archives: ${package}"
-      fi
-      PKGS+=("$package")
-      file="$(realpath -s --relative-to="$REPO" "$pkg")"
-      info+=$'\n'"file: ${file}"
-      info+=$'\n---'
-      echo "$info"
+      create_entry "$pkg"
     done
   done
 fi
