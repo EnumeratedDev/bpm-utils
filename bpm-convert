@@ -74,7 +74,11 @@ if tar -xf "$PACKAGE" -C "$TEMPDIR" source-files &> /dev/null; then
   mv "$TEMPDIR"/source-files/* "$TEMPDIR"/
   rm -d "$TEMPDIR"/source-files
 fi
-
+PACKAGE_SCRIPTS=()
+while read line; do
+  PACKAGE_SCRIPTS+=("$line")
+done < <(tar -tf "$PACKAGE" | grep -v -E 'source.sh|pkg.info|source-files')
+tar -xf "$PACKAGE" -C "$TEMPDIR" ${PACKAGE_SCRIPTS[@]} &> /dev/null
 cd "$TEMPDIR"
 
 # Declare and run Set Variables function
@@ -156,7 +160,7 @@ for func in $(typeset -F | awk '{print $3}' | grep '^package'); do
   echo "${PKGINFO_FILE}" > pkg.info
   sed -i "s/architecture:.*/architecture: ${ARCH}/g" pkg.info
   sed -i 's/type:.*/type: binary/g' pkg.info
-  fakeroot -i "$TEMPDIR"/fakeroot_file_"$pkgname" tar -czpf "$pkgname".tar.gz pkg.info output --transform 's/output/files/'
+  fakeroot -i "$TEMPDIR"/fakeroot_file_"$pkgname" tar -czpf "$pkgname".tar.gz pkg.info ${PACKAGE_SCRIPTS[@]} output --transform 's/output/files/'
   mv "$pkgname".tar.gz "$DIR"/"$pkgname"-"$BPM_PKG_VERSION"-"$ARCH".bpm
   echo "Packaged ${pkgname} successfully!"
   rm "$TEMPDIR"/fakeroot_file_"$pkgname"
