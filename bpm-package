@@ -9,11 +9,12 @@ if [ -f .compilation-options ]; then
   source ./.compilation-options
 fi
 
-while getopts "cska:" flag; do
+while getopts "cskfa:" flag; do
   case "$flag" in
     c) CONVERT=true;;
     k) KEEP=true;;
     s) SKIPCHECK=true;;
+    f) FORCE=true;;
     a) ARCH="${OPTARG}";;
     *) exit 1;;
   esac
@@ -89,11 +90,8 @@ tar -c --owner=0 --group=0 --no-same-owner -zf "$output" "${toCompress[@]}"
 
 if [ ! -z "$CONVERT" ] && "$CONVERT" && [[ "$type" == "source" ]]; then
   args=()
-  if ! [ -z "$KEEP" ]; then
-    args+=("-a" "$ARCH")
-  fi
-  if ! [ -z "$SKIPCHECK" ]; then
-    args+=("-s")
-  fi
-  bpm-convert "${args[@]}" -a "$ARCH"  "$output"
+  [ -n "$KEEP" ] && args+=("-k")
+  [ -n "$SKIPCHECK" ] && args+=("-s")
+  [ -n "$FORCE" ] && args+=("-f")
+  bpm-convert "${args[@]}" -a "$ARCH" "$output"
 fi

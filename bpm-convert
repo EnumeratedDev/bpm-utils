@@ -6,11 +6,12 @@ fi
 
 echo "$ARCH"
 
-while getopts "ksa:" o; do
+while getopts "ksfa:" o; do
     case "${o}" in
         a) ARCH="$OPTARG";;
         k) KEEP=true;;
         s) SKIPCHECK=true;;
+        f) FORCE=true;;
         *) exit 1;;
     esac
 done
@@ -60,6 +61,23 @@ function ReadPkgInfo() {
   cd "$BACK"
 }
 ReadPkgInfo
+
+if [ -z "$FORCE" ] && command -v bpm &> /dev/null && [ -n "$PKGINFO[make_depends]" ]; then
+  MISSING=()
+  for depend in $(echo "${PKGINFO[make_depends]}" | tr -d '[]' | tr ',' '\n' ); do
+    if ! bpm info "$depend" &> /dev/null; then
+      MISSING+=("$depend")
+    fi
+  done
+  if [ "${#MISSING[@]}" -ne 0 ]; then
+    echo "The following make dependencies could not be resolved: ${MISSING[@]}"
+    exit 1
+  fi
+elif ! command -v bpm &> /dev/null; then
+  echo "BPM not in PATH. Skipping make dependency resolution"
+elif [ -n "$FORCE" ]; then
+  echo "Force compilation enabled. Skipping make dependency resolution"
+fi
 
 # Creating temporary compilation directory structure
 TEMPDIR="/var/tmp/bpm_source_${PKGINFO[name]}"
