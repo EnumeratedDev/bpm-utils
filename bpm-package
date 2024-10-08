@@ -61,10 +61,14 @@ else
       echo "post_install.sh file found"
       toCompress+=("post_install.sh")
     fi
+    if [ -f pre_remove.sh ]; then
+      echo "pre_remove.sh file found"
+      toCompress+=("pre_remove.sh")
+    fi
     if [ -f post_remove.sh ]; then
-          echo "post_remove.sh file found"
-          toCompress+=("post_remove.sh")
-        fi
+      echo "post_remove.sh file found"
+      toCompress+=("post_remove.sh")
+    fi
     if [ -d source-files ]; then
       if [ ! -z "$(ls -A source-files)" ]; then
         echo "source-files/ directory found"
