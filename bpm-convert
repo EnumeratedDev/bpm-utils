@@ -62,6 +62,23 @@ function ReadPkgInfo() {
 }
 ReadPkgInfo
 
+if [ -z "$FORCE" ] && command -v bpm &> /dev/null && [ -n "$PKGINFO[depends]" ]; then
+  MISSING=()
+  for depend in $(echo "${PKGINFO[depends]}" | tr -d '[]' | tr ',' '\n' ); do
+    if ! bpm info "$depend" &> /dev/null; then
+      MISSING+=("$depend")
+    fi
+  done
+  if [ "${#MISSING[@]}" -ne 0 ]; then
+    echo "The following dependencies could not be resolved: ${MISSING[@]}"
+    EXIT=true
+  fi
+elif ! command -v bpm &> /dev/null; then
+  echo "BPM not in PATH. Skipping dependency resolution"
+elif [ -n "$FORCE" ]; then
+  echo "Force compilation enabled. Skipping dependency resolution"
+fi
+
 if [ -z "$FORCE" ] && command -v bpm &> /dev/null && [ -n "$PKGINFO[make_depends]" ]; then
   MISSING=()
   for depend in $(echo "${PKGINFO[make_depends]}" | tr -d '[]' | tr ',' '\n' ); do
@@ -71,12 +88,16 @@ if [ -z "$FORCE" ] && command -v bpm &> /dev/null && [ -n "$PKGINFO[make_depends
   done
   if [ "${#MISSING[@]}" -ne 0 ]; then
     echo "The following make dependencies could not be resolved: ${MISSING[@]}"
-    exit 1
+    EXIT=true
   fi
 elif ! command -v bpm &> /dev/null; then
   echo "BPM not in PATH. Skipping make dependency resolution"
 elif [ -n "$FORCE" ]; then
   echo "Force compilation enabled. Skipping make dependency resolution"
+fi
+
+if [ -n "$EXIT" ]; then
+  exit 1
 fi
 
 # Creating temporary compilation directory structure
@@ -86,6 +107,7 @@ if [ -d "$TEMPDIR" ] && [ -z "$KEEP" ]; then
 fi
 mkdir -p "$TEMPDIR"
 mkdir -p "$TEMPDIR"/source
+[ -d "$TEMPDIR"/output ] && rm -rf "$TEMPDIR"/output
 mkdir -p "$TEMPDIR"/output
 tar -xf "$PACKAGE" -C "$TEMPDIR" source.sh
 if tar -xf "$PACKAGE" -C "$TEMPDIR" source-files &> /dev/null; then
