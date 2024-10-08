@@ -21,7 +21,7 @@ Creating a package for BPM with these utilities is simple
 
 2) Run the following command (You can run the comamnd with no arguments to see available options)
 ```
-bpm-setup -D my_bpm_package -t <binary/source>
+bpm-setup -D my_package -t <binary/source>
 ```
 3) This will create a directory named 'my_bpm_package' under the current directory with all the required files for the chosen package type
 4) You are able to edit the pkg.info descriptor file inside the newly created directory to your liking. Here's an example of what a descriptor  file could look like
@@ -29,12 +29,14 @@ bpm-setup -D my_bpm_package -t <binary/source>
 name: my_package
 description: My package's description
 version: 1.0
+revision: 2 (Optional)
 architecture: x86_64
 url: https://www.my-website.com/ (Optional)
 license: MyLicense (Optional)
 type: <binary/source>
-depends: dependency1,dependency2 (Optional)
-make_depends: make_depend1,make_depend2 (Optional)
+depends: ["dependency1","dependency2"] (Optional)
+optional_depends: ["optional_depend1","optional_depend2"]
+make_depends: ["make_depend1","make_depend2"] (Optional)
 ```
 ### Binary Packages
 3) If you are making a binary package, copy all your binaries along with the directories they reside in (i.e files/usr/bin/my_binary)

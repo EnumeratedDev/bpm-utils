@@ -19,7 +19,6 @@ if [ $# -eq 0 ]; then
   exit
 fi
 
-NAME="package-name"
 DESCRIPTION="Default package description"
 VERSION="1.0"
 #URL="https://my.project.url/ (Optional)"
@@ -77,6 +76,10 @@ done
 if [ -z "${DIRECTORY}" ]; then
   echo "Required directory argument missing. Try 'bpm-setup -D <directory> [other options...]"
   exit 1
+fi
+
+if [ -z "${NAME}" ]; then
+  NAME="${DIRECTORY}"
 fi
 
 if [[ ! "${DIRECTORY}" == "/"* ]]; then
