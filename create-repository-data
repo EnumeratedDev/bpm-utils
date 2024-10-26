@@ -17,7 +17,7 @@ while getopts "d" flag; do
     case "$flag" in
         d) DEEP=true
            shopt -s globstar;;
-        *) echo "Unknown flag ${flag}"
+        *) >&2 echo "Unknown flag ${flag}"
            exit 2;;
     esac
 done
@@ -27,7 +27,7 @@ if [ -z "${@:$OPTIND:1}" ]; then
   exit 1
 fi
 if ! [ -d "${@:$OPTIND:1}" ]; then
-  echo "The given path is not a directory"
+  >&2 echo "The given path is not a directory"
   exit 1
 fi
 
@@ -48,13 +48,19 @@ create_entry() {
   info="info:"$'\n'
   info+=$(tar -xf "$pkg" pkg.info -O | sed 's/^/  /g')
   package=$(echo "$info" | grep 'name: ' | xargs | awk '{print $2}')
+  if ! echo "$info" | grep -q '^  type: binary'; then
+    >&2 echo "The following package is not a binary package: ${package}"
+    exit 1
+  fi
   if containsElement "$package" "${PKGS[@]}"; then
-    echo "The following package was found in more than 1 package archives: ${package}"
+    >&2 echo "The following package was found in more than 1 package archives: ${package}"
     exit 1
   fi
   PKGS+=("$package")
   file="$(realpath -s --relative-to="$REPO" "$pkg")"
   info+=$'\n'"download: ${file}"
+  info+=$'\n'"download_size: "$(cat "$pkg" | wc -c)
+  info+=$'\n'"installed_size: "$(tar -xf "$pkg" files.tar.gz -O | zcat | wc -c)
   info+=$'\n---'
   echo "$info"
 }

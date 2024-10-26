@@ -27,7 +27,7 @@ if ! [ -f "$PACKAGE" ]; then
   echo "$PACKAGE is not a path to a file"
   exit 1
 fi
-if ! file "$PACKAGE" | grep -q 'gzip compressed data'; then
+if ! file "$PACKAGE" | grep -q 'POSIX tar archive'; then
   echo "$PACKAGE is not a BPM package"
   exit 1
 fi
@@ -126,6 +126,8 @@ function SetVariables() {
   export BPM_PKG_NAME="${PKGINFO[name]}"
   export BPM_PKG_DESC="${PKGINFO[description]}"
   export BPM_PKG_VERSION="${PKGINFO[version]}"
+  export BPM_PKG_REVISION="${PKGINFO[revision]}"
+  [ -z "$BPM_PKG_REVISION" ] && export BPM_PKG_REVISION=1
   export BPM_PKG_URL="${PKGINFO[url]}"
   export BPM_PKG_ARCH="${PKGINFO[architecture]}"
   IFS=',' read -r -a BPM_PKG_DEPENDS <<< "${PKGINFO[depends]}"
@@ -200,8 +202,9 @@ for func in $(typeset -F | awk '{print $3}' | grep '^package'); do
   echo "${PKGINFO_FILE}" > pkg.info
   sed -i "s/architecture:.*/architecture: ${ARCH}/g" pkg.info
   sed -i 's/type:.*/type: binary/g' pkg.info
-  fakeroot -i "$TEMPDIR"/fakeroot_file_"$pkgname" tar -czpf "$pkgname".tar.gz pkg.info ${PACKAGE_SCRIPTS[@]} output --transform 's/output/files/'
-  mv "$pkgname".tar.gz "$DIR"/"$pkgname"-"$BPM_PKG_VERSION"-"$ARCH".bpm
+  fakeroot -i "$TEMPDIR"/fakeroot_file_"$pkgname" find "$TEMPDIR"/output -mindepth 1 -printf "%P %#m %U %G %s\n" > "$TEMPDIR"/pkg.files
+  find output -printf "%P\n" | fakeroot -i "$TEMPDIR"/fakeroot_file_"$pkgname" tar -czf files.tar.gz --no-recursion -C output -T -
+  tar -cf "$DIR"/"$pkgname"-"$BPM_PKG_VERSION"-"$BPM_PKG_REVISION"-"$ARCH".bpm --owner=0 --group=0 -C "$TEMPDIR" pkg.info pkg.files ${PACKAGE_SCRIPTS[@]} files.tar.gz
   echo "Packaged ${pkgname} successfully!"
   rm "$TEMPDIR"/fakeroot_file_"$pkgname"
   rm -r output/

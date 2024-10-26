@@ -88,7 +88,7 @@ for pkginfo in ./pkg.inf*; do
 done
 
 echo "Creating $type package as $output"
-tar -c --owner=0 --group=0 --no-same-owner -zf "$output" "${toCompress[@]}"
+tar -c --owner=0 --group=0 --no-same-owner -f "$output" "${toCompress[@]}"
 
 if [ ! -z "$CONVERT" ] && "$CONVERT" && [[ "$type" == "source" ]]; then
   args=()
