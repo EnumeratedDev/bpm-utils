@@ -60,6 +60,7 @@ func setupFlags() {
 
 func help() {
 	fmt.Println("Usage: bpm-setup <options>")
+	fmt.Println("Description: bpm-setup sets up directories for BPM source package creation")
 	fmt.Println("Options:")
 	fmt.Println("  -D=<directory> | Path to package directory")
 	fmt.Println("  -n=<name> | Set the package name (Defaults to \"package-name\")")
