@@ -31,6 +31,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// run checks
+	runChecks()
+
 	// Show summary
 	showSummary()
 
@@ -66,6 +69,20 @@ func help() {
 	fmt.Println("  -l=<licenses> | Set the package licenses (Optional)")
 	fmt.Println("  -t=<template file> | Use a template file (Defaults to source.default)")
 	fmt.Println("  -g=<true/false> | Create git repository (Defaults to true)")
+}
+
+func runChecks() {
+	if strings.TrimSpace(*directory) == "" {
+		log.Fatalf("No directory was specified!")
+	}
+
+	if strings.TrimSpace(*name) == "" {
+		log.Fatalf("No directory was specified!")
+	}
+
+	if stat, err := os.Stat(path.Join("/etc/bpm-utils/", *template)); err != nil || stat.IsDir() {
+		log.Fatalf("%s is not a valid template file!", *template)
+	}
 }
 
 func showSummary() {
