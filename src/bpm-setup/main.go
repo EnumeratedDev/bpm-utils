@@ -86,12 +86,12 @@ func runChecks() {
 }
 
 func showSummary() {
-	absPath, err := filepath.Abs(*directory)
+	absPath, err := filepath.Abs(strings.TrimSpace(*directory))
 	if err != nil {
 		log.Fatalf("Failed to determine absolute path: %s", err)
 	}
 	fmt.Printf("Setting up package directory at %s with the following information:\n", absPath)
-	fmt.Printf("Package name: %s\n", *name)
+	fmt.Printf("Package name: %s\n", strings.TrimSpace(*name))
 	fmt.Printf("Package description: %s\n", *description)
 	fmt.Printf("Package version: %s\n", *version)
 	if url != nil && *url != "" {
@@ -109,6 +109,10 @@ func showSummary() {
 }
 
 func createDirectory() {
+	// Trim spaces
+	*directory = strings.TrimSpace(*directory)
+	*name = strings.TrimSpace(*name)
+
 	// Create directory
 	err := os.Mkdir(*directory, 0755)
 	if err != nil {
