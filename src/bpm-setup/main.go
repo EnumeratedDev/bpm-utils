@@ -77,7 +77,7 @@ func runChecks() {
 	}
 
 	if strings.TrimSpace(*name) == "" {
-		log.Fatalf("No directory was specified!")
+		log.Fatalf("No package name was specified!")
 	}
 
 	if stat, err := os.Stat(path.Join("/etc/bpm-utils/", *template)); err != nil || stat.IsDir() {
