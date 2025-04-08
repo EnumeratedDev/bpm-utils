@@ -18,7 +18,7 @@ var description = flag.String("d", "Default Package Description", "Set the descr
 var version = flag.String("v", "1.0", "Set the package version (Defaults to \"1.0\")")
 var url = flag.String("u", "", "Set the package URL (Optional)")
 var license = flag.String("l", "", "Set the package licenses (Optional)")
-var template = flag.String("t", "source.default", "Set the package template (Defaults to \"source.default\")")
+var template = flag.String("t", "gnu-configure", "Set the package template (Defaults to \"gnu-configure\")")
 var git = flag.Bool("g", true, "Create git repository (Defaults to true)")
 
 func main() {
@@ -67,7 +67,7 @@ func help() {
 	fmt.Println("  -v=<version> | Set the package version (Defaults to \"1.0\")")
 	fmt.Println("  -u=<url> | Set the package URL (Optional)")
 	fmt.Println("  -l=<licenses> | Set the package licenses (Optional)")
-	fmt.Println("  -t=<template file> | Use a template file (Defaults to source.default)")
+	fmt.Println("  -t=<template file> | Use a template file (Defaults to gnu-configure)")
 	fmt.Println("  -g=<true/false> | Create git repository (Defaults to true)")
 }
 
@@ -80,7 +80,7 @@ func runChecks() {
 		log.Fatalf("No package name was specified!")
 	}
 
-	if stat, err := os.Stat(path.Join("/etc/bpm-utils/", *template)); err != nil || stat.IsDir() {
+	if stat, err := os.Stat(path.Join("/etc/bpm-utils/templates/", *template)); err != nil || stat.IsDir() {
 		log.Fatalf("%s is not a valid template file!", *template)
 	}
 }
@@ -145,7 +145,7 @@ func createDirectory() {
 	}
 
 	// Copy source template file
-	input, err := os.ReadFile(path.Join("/etc/bpm-utils/", *template))
+	input, err := os.ReadFile(path.Join("/etc/bpm-utils/templates", *template))
 	if err != nil {
 		log.Fatalf("Error: could not read template file: %s", err)
 		return

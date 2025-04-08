@@ -27,7 +27,8 @@ install: build config/
 	# Install binaries
 	install -Dm755 build/bpm-* -t $(DESTDIR)$(BINDIR)/
 	# Install config files
-	install -Dm644 config/* -t $(DESTDIR)$(SYSCONFDIR)/bpm-utils/
+	install -dm755 $(DESTDIR)$(SYSCONFDIR)/bpm-utils/
+	cp -r config/* -t $(DESTDIR)$(SYSCONFDIR)/bpm-utils/
 
 clean:
 	rm -r build/
