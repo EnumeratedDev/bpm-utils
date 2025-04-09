@@ -109,6 +109,15 @@ func showSummary() {
 	fmt.Printf("Create git repository: %t\n", *git)
 }
 
+func replaceVariables(templateContents string) string {
+	templateContents = strings.ReplaceAll(templateContents, "$NAME", *name)
+	templateContents = strings.ReplaceAll(templateContents, "$DESCRIPTION", *description)
+	templateContents = strings.ReplaceAll(templateContents, "$VERSION", *version)
+	templateContents = strings.ReplaceAll(templateContents, "$URL", *url)
+
+	return templateContents
+}
+
 func createDirectory() {
 	// Trim spaces
 	*directory = strings.TrimSpace(*directory)
@@ -151,6 +160,10 @@ func createDirectory() {
 		log.Fatalf("Error: could not read template file: %s", err)
 		return
 	}
+
+	// Replace variables in template file
+	input = []byte(replaceVariables(string(input)))
+
 	err = os.WriteFile(path.Join(*directory, "source.sh"), input, 0644)
 	if err != nil {
 		log.Fatalf("Error: could not write to source file: %s", err)
