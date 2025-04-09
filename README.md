@@ -1,56 +1,58 @@
 
 # BPM Utils
-### _Package creation and editing utilities for BPM_ ###
+### _Creation and maintenance utilities for BPM packages and repositories_ ###
 
 ## Information
+BPM Utils provides a number of different helper commands for creating and maintaining BPM packages or repositories
 
-BPM Utils is a package providing a number of different helper scripts for setting up and archiving BPM packages
-
-## Provided Scripts
-- bpm-setup (Creates a directory with the required files for a BPM package)
+## Provided utilities
+- bpm-setup (Sets up directories for BPM source package creation)
+- bpm-repo (Allows for easy management of multiple-package repositories)
 - bpm-package (Turns a BPM package directory into a .bpm archive)
 - bpm-convert (Converts source packages to binary ones)
-- create-repository-data (Generates a repository package data list for unpac)
 
 ## Installation
-
-Currently all BPM Utilities are simple bash scripts. This means you are able to simply clone this repository and place these scripts wherever you would like
+#### Using a package manager
+- Tide Linux: Tide linux provides a `bpm-utils` package which can be installed using `bpm install bpm-utils`
+#### Building from source
+- Download `go` from your package manager or from the go website
+- Download `make` from your package manager
+- Run the following command to compile the project
+```
+make SYSCONFDIR=/etc
+```
+- Run the following command to install bpm-utils to your system. You may also append a DESTDIR variable at the end of this line if you wish to install the files to a different location
+```
+make install PREFIX=/usr SYSCONFDIR=/etc
+```
 ## Package Creation using BPM Utils
-
 Creating a package for BPM with these utilities is simple
 
-2) Run the following command (You can run the comamnd with no arguments to see available options)
+1) Run the following command (You can run the command with no arguments to see all available options)
 ```
-bpm-setup -D my_package -t <binary/source>
+bpm-setup -D my_package
 ```
-3) This will create a directory named 'my_bpm_package' under the current directory with all the required files for the chosen package type
-4) You are able to edit the pkg.info descriptor file inside the newly created directory to your liking. Here's an example of what a descriptor  file could look like
-```
+2) This will create a directory named `my_package` containing all files required for bpm package creation
+3) You may wish to edit the pkg.info descriptor file inside the newly created directory to include dependencies or add/change other information. Here's an example of what a descriptor  file could look like
+```yaml
 name: my_package
 description: My package's description
 version: 1.0
 revision: 2 (Optional)
-architecture: x86_64
 url: https://www.my-website.com/ (Optional)
 license: MyLicense (Optional)
-type: <binary/source>
+architecture: x86_64
 depends: ["dependency1","dependency2"] (Optional)
-optional_depends: ["optional_depend1","optional_depend2"]
+optional_depends: ["optional_depend1","optional_depend2"] (Optional)
 make_depends: ["make_depend1","make_depend2"] (Optional)
+keep: ["etc/my_config.conf"] (Optional)
+type: source
 ```
-### Binary Packages
-3) If you are making a binary package, copy all your binaries along with the directories they reside in (i.e files/usr/bin/my_binary)
-6) Run the following to create a package archive
+
+4) If you would like to bundle patches or other files with your package place them in the 'source-files' directory. They will be extracted to the same location as the source.sh file during compilation
+5) You now need to edit your source.sh file which contains the compilation instructions for your package, the default source template comments should explain the basic process of compiling your program and how to edit it
+6) When you are done editing your source.sh script run the following command to create a BPM package archive. You may run the `bpm-package` command with no arguments to get an explanation of what each flag does
 ```
-bpm-package <filename.bpm>
+bpm-package -d
 ```
-7) It's done! You now hopefully have a working BPM package!
-### Source Packages
-3) If you would like to bundle patches or other files with your source package place them in the 'source-files' directory. They will be extracted to the same location as the source.sh file during compilation
-4) You need to edit your 'source.sh' file, the default source.sh template should explain the basic process of compiling your program
-5) Your goal is to download your program's source code with either git, wget, curl, etc. and put the binaries under a folder called 'output' in the root of the temp directory. There is a simple example script with helpful comments in the htop-src test package
-6) When you are done making your source.sh script run the following to create a package archive. You may also append the -c flag to compile the package and create a binary package as well
-```
-bpm-package <filename.bpm>
-```
-7) That's it! Your source package should now be compiling correctly!
+7) The `bpm-package` command will output a binary bpm archive which can be installed by BPM using `bpm install <file.bpm>`. If you are operating inside a BPM repository created using `bpm-repo` the file will automatically be moved to the binary subdirectory of your package repository
