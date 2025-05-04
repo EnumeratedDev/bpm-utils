@@ -1,7 +1,7 @@
 package main
 
 import (
-	bpm_utils_shared "bpm-utils-shared"
+	bpmutilsshared "bpm-utils-shared"
 	"bufio"
 	"flag"
 	"fmt"
@@ -187,7 +187,7 @@ func compilePackage(archive string) {
 	// Install compiled packages
 	if *installPackage && len(outputFiles) != 0 {
 		// Read BPM utils config
-		config, err := bpm_utils_shared.ReadBPMUtilsConfig()
+		config, err := bpmutilsshared.ReadBPMUtilsConfig()
 		if err != nil {
 			log.Fatalf("Error: failed to read config: %s", err)
 		}
