@@ -1,6 +1,7 @@
 package main
 
 import (
+	bpmutilsshared "bpm-utils-shared"
 	"bufio"
 	"flag"
 	"fmt"
@@ -12,23 +13,29 @@ import (
 	"strings"
 )
 
-var directory = flag.String("D", "", "Path to package directory")
-var name = flag.String("n", "", "Set the package name (Defaults to \"package-name\")")
-var description = flag.String("d", "Default Package Description", "Set the description (Defaults to \"package-description\")")
-var version = flag.String("v", "1.0", "Set the package version (Defaults to \"1.0\")")
-var url = flag.String("u", "", "Set the package URL (Optional)")
-var license = flag.String("l", "", "Set the package licenses (Optional)")
-var template = flag.String("t", "gnu-configure", "Set the package template (Defaults to \"gnu-configure\")")
-var git = flag.Bool("g", true, "Create git repository (Defaults to true)")
+var directory = flag.String("D", "", "Path to package directory (required)")
+var name = flag.String("n", "", "Set the package name")
+var description = flag.String("d", "Default Package Description", "Set the description")
+var version = flag.String("v", "1.0", "Set the package version")
+var url = flag.String("u", "", "Set the package URL")
+var license = flag.String("l", "", "Set the package licenses")
+var template = flag.String("t", "gnu-configure", "Set the package template")
+var git = flag.Bool("g", true, "Create git repository")
 
 func main() {
-	// Setup flags
-	setupFlags()
+	// Setup flags and help
+	bpmutilsshared.SetupHelp("bpm-setup <options>", "Sets up files and directories for BPM source package creation")
+	bpmutilsshared.SetupFlags()
 
 	// Show command help if no directory name is given
 	if *directory == "" {
-		help()
+		bpmutilsshared.ShowHelp()
 		os.Exit(1)
+	}
+
+	// Set package name to directory name if empty
+	if *name == "" {
+		*name = filepath.Base(*directory)
 	}
 
 	// run checks
@@ -48,28 +55,6 @@ func main() {
 
 	// Create package directory
 	createDirectory()
-}
-
-func setupFlags() {
-	flag.Usage = help
-	flag.Parse()
-	if *name == "" {
-		*name = *directory
-	}
-}
-
-func help() {
-	fmt.Println("Usage: bpm-setup <options>")
-	fmt.Println("Description: bpm-setup sets up directories for BPM source package creation")
-	fmt.Println("Options:")
-	fmt.Println("  -D=<directory> | Path to package directory")
-	fmt.Println("  -n=<name> | Set the package name (Defaults to \"package-name\")")
-	fmt.Println("  -d=<description> | Set the package description (Defaults to \"Default package description\")")
-	fmt.Println("  -v=<version> | Set the package version (Defaults to \"1.0\")")
-	fmt.Println("  -u=<url> | Set the package URL (Optional)")
-	fmt.Println("  -l=<licenses> | Set the package licenses (Optional)")
-	fmt.Println("  -t=<template file> | Use a template file (Defaults to gnu-configure)")
-	fmt.Println("  -g=<true/false> | Create git repository (Defaults to true)")
 }
 
 func runChecks() {

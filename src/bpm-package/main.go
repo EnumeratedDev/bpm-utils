@@ -21,8 +21,9 @@ var installPackage = flag.Bool("i", false, "Install compiled BPM package after c
 var yesAll = flag.Bool("y", false, "Accept all confirmation prompts")
 
 func main() {
-	// Setup flags
-	setupFlags()
+	// Setup flags and help
+	bpmutilsshared.SetupHelp("bpm-package <options>", "Generates source BPM package from current directory")
+	bpmutilsshared.SetupFlags()
 
 	// Run checks
 	runChecks()
@@ -33,18 +34,6 @@ func main() {
 	if *compile {
 		compilePackage(outputFile)
 	}
-}
-
-func setupFlags() {
-	flag.Usage = help
-	flag.Parse()
-}
-
-func help() {
-	fmt.Println("Usage: bpm-package <options>")
-	fmt.Println("Description: Generates source BPM package from current directory")
-	fmt.Println("Options:")
-	flag.PrintDefaults()
 }
 
 func runChecks() {
