@@ -4,7 +4,7 @@ BINDIR ?= $(PREFIX)/bin
 SYSCONFDIR := $(PREFIX)/etc
 
 # Compilers and tools
-GO ?= $(shell which go)
+GO ?= go
 
 build:
 	mkdir -p build
@@ -13,17 +13,24 @@ build:
 	cd src/bpm-repo; $(GO) build -ldflags "-w" -o ../../build/bpm-repo git.enumerated.dev/bubble-package-manager/bpm-utils/src/bpm-repo
 	cd src/bpm-setup; $(GO) build -ldflags "-w" -o ../../build/bpm-setup git.enumerated.dev/bubble-package-manager/bpm-utils/src/bpm-setup
 
-install: build/ config/
-	# Create directories
+install:
+	# Create directory
 	install -dm755 $(DESTDIR)$(BINDIR)
-	install -dm755 $(DESTDIR)$(SYSCONFDIR)
-	# Install binaries
+	# Install binary
 	install -Dm755 build/bpm-* -t $(DESTDIR)$(BINDIR)/
-	# Install config files
+
+install-config:
+	# Create directory
+	install -dm755 $(DESTDIR)$(SYSCONFDIR)
+	# Install files
 	install -dm755 $(DESTDIR)$(SYSCONFDIR)/bpm-utils/
 	cp -r config/* -t $(DESTDIR)$(SYSCONFDIR)/bpm-utils/
+
+uninstall:
+	-rm -f $(DESTDIR)$(BINDIR)/bpm-{convert,package,repo-setup}
+	-rm -rf $(DESTDIR)$(SYSCONFDIR)/bpm-utils/
 
 clean:
 	rm -r build/
 
-.PHONY: build
+.PHONY: build install install-config uninstall clean
