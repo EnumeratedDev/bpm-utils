@@ -9,7 +9,6 @@ BPM Utils provides a number of different helper commands for creating and mainta
 - bpm-setup (Sets up directories for BPM source package creation)
 - bpm-repo (Allows for easy management of multiple-package repositories)
 - bpm-package (Turns a BPM package directory into a .bpm archive)
-- bpm-convert (Converts source packages to binary ones)
 
 ## Installation
 #### Using a package manager
@@ -19,11 +18,12 @@ BPM Utils provides a number of different helper commands for creating and mainta
 - Download `make` from your package manager
 - Run the following command to compile the project
 ```
-make SYSCONFDIR=/etc
+make
 ```
 - Run the following command to install bpm-utils to your system. You may also append a DESTDIR variable at the end of this line if you wish to install the files to a different location
 ```
 make install PREFIX=/usr SYSCONFDIR=/etc
+make install-config PREFIX=/usr SYSCONFDIR=/etc
 ```
 ## Package Creation using BPM Utils
 Creating a package for BPM with these utilities is simple
