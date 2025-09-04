@@ -8,7 +8,6 @@ GO ?= go
 
 build:
 	mkdir -p build
-	cd src/bpm-convert; $(GO) build -ldflags "-w" -o ../../build/bpm-convert git.enumerated.dev/bubble-package-manager/bpm-utils/src/bpm-convert
 	cd src/bpm-package; $(GO) build -ldflags "-w" -o ../../build/bpm-package git.enumerated.dev/bubble-package-manager/bpm-utils/src/bpm-package
 	cd src/bpm-repo; $(GO) build -ldflags "-w" -o ../../build/bpm-repo git.enumerated.dev/bubble-package-manager/bpm-utils/src/bpm-repo
 	cd src/bpm-setup; $(GO) build -ldflags "-w" -o ../../build/bpm-setup git.enumerated.dev/bubble-package-manager/bpm-utils/src/bpm-setup
@@ -27,7 +26,7 @@ install-config:
 	cp -r config/* -t $(DESTDIR)$(SYSCONFDIR)/bpm-utils/
 
 uninstall:
-	-rm -f $(DESTDIR)$(BINDIR)/bpm-{convert,package,repo-setup}
+	-rm -f $(DESTDIR)$(BINDIR)/bpm-{package,repo,setup}
 	-rm -rf $(DESTDIR)$(SYSCONFDIR)/bpm-utils/
 
 clean:
