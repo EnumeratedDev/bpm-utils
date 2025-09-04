@@ -2,16 +2,16 @@ package main
 
 import (
 	bpmutilsshared "bpm-utils-shared"
-	"bufio"
 	"flag"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 var compile = flag.Bool("c", false, "Compile BPM source package")
@@ -127,14 +127,23 @@ func compilePackage(archive string) {
 	if *yesAll {
 		args = append(args, "-y")
 	}
+	if *installPackage {
+		args = append(args, "--fd=3")
+	}
 	args = append(args, archive)
 	cmd := exec.Command("bpm", args...)
 	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	pipe, err := cmd.StdoutPipe()
+
+	// Set output pipe for file descriptor 3
+	cmdOutputReader, cmdOutputWriter, err := os.Pipe()
 	if err != nil {
-		log.Fatalf("Error: could not setup stdout pipe: %s", err)
+		log.Fatalf("Error: failed to create pipe: %s", err)
 	}
+	defer cmdOutputReader.Close()
+	defer cmdOutputWriter.Close()
+	cmd.ExtraFiles = append(cmd.ExtraFiles, cmdOutputWriter)
 
 	// Run command
 	err = cmd.Start()
@@ -142,35 +151,23 @@ func compilePackage(archive string) {
 		log.Fatalf("Error: failed to compile BPM source package: %s", err)
 	}
 
-	// Print command output and store it in variable
-	pipeOutput := ""
-	buf := bufio.NewReader(pipe)
-	for {
-		b, err := buf.ReadByte()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			log.Fatalf("Error: failed to read byte from command: %s", err)
-		}
-
-		pipeOutput += string(b)
-		fmt.Print(string(b))
-	}
-	fmt.Println()
-
-	// Put output file into slice
-	outputFiles := make([]string, 0)
-	for _, line := range strings.Split(pipeOutput, "\n") {
-		if strings.Contains(line, "Binary package generated at: ") {
-			path := strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
-			outputFiles = append(outputFiles, path)
-		}
-	}
-
 	// Wait for process to complete
 	err = cmd.Wait()
 	if err != nil {
 		log.Fatalf("Error: failed to compile BPM source package: %s", err)
+	}
+
+	// Read cmd output
+	cmdOutputWriter.Close()
+	cmdOutput, err := io.ReadAll(cmdOutputReader)
+	if err != nil {
+		log.Fatalf("Error: failed to get cmd output: %s", err)
+	}
+
+	// Put output file into slice
+	outputFiles := make([]string, 0)
+	for _, line := range strings.Split(strings.TrimSpace(string(cmdOutput)), "\n") {
+		outputFiles = append(outputFiles, line)
 	}
 
 	// Install compiled packages
