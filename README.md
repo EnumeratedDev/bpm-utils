@@ -51,8 +51,8 @@ type: source
 
 4) If you would like to bundle patches or other files with your package place them in the 'source-files' directory. They will be extracted to the same location as the source.sh file during compilation
 5) You now need to edit your source.sh file which contains the compilation instructions for your package, the default source template comments should explain the basic process of compiling your program and how to edit it
-6) When you are done editing your source.sh script run the following command to create a BPM package archive. You may run the `bpm-package` command with no arguments to get an explanation of what each flag does
+6) When you are done editing your source.sh script run the following command to create a BPM source package archive. You may run the `bpm-package` command with no arguments to get an explanation of what each flag does
 ```
-bpm-package -d
+bpm-package
 ```
 7) The `bpm-package` command will output a binary bpm archive which can be installed by BPM using `bpm install <file.bpm>`. If you are operating inside a BPM repository created using `bpm-repo` the file will automatically be moved to the binary subdirectory of your package repository
