@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	flag "github.com/spf13/pflag"
@@ -18,6 +21,7 @@ var compile = flag.BoolP("compile", "c", false, "Compile BPM source package")
 var skipCheck = flag.BoolP("skip-checks", "s", false, "Skip 'check' function while compiling")
 var installDepends = flag.BoolP("depends", "d", false, "Install package dependencies for compilation")
 var installPackage = flag.BoolP("install", "i", false, "Install compiled BPM package after compilation finishes")
+var moveToBinaryDir = flag.BoolP("move", "m", false, "Move output packages to the current repository's binary directory")
 var yesAll = flag.BoolP("yes", "y", false, "Accept all confirmation prompts")
 
 func main() {
@@ -127,9 +131,7 @@ func compilePackage(archive string) {
 	if *yesAll {
 		args = append(args, "-y")
 	}
-	if *installPackage {
-		args = append(args, "--fd=3")
-	}
+	args = append(args, "--fd=3")
 	args = append(args, archive)
 	cmd := exec.Command("bpm", args...)
 	cmd.Stdin = os.Stdin
@@ -165,13 +167,44 @@ func compilePackage(archive string) {
 	}
 
 	// Put output file into slice
-	outputFiles := make([]string, 0)
+	outputPkgs := make(map[string]string)
 	for _, line := range strings.Split(strings.TrimSpace(string(cmdOutput)), "\n") {
-		outputFiles = append(outputFiles, line)
+		// Read generated package info
+		pkgInfo, err := bpmutilsshared.ReadPacakgeInfo(line)
+
+		if repo := bpmutilsshared.GetRepository(); repo != "" && *moveToBinaryDir {
+			// Move package to binary dir
+			if err != nil {
+				log.Fatalf("Error: could not read package info: %s", err)
+			}
+			newPath := path.Join(repo, "binary", pkgInfo.Arch, path.Base(line))
+			os.MkdirAll(path.Dir(newPath), 0755)
+			os.Rename(line, newPath)
+			outputPkgs[pkgInfo.Name] = newPath
+
+			// Remove old package from binary dir
+			if database, err := bpmutilsshared.ReadDatabase(path.Join(repo, "binary/database.bpmdb")); err == nil {
+				if entry, ok := database.Entries[pkgInfo.Name]; ok {
+					pkgFilepath := path.Join(repo, "binary", entry.Filepath)
+					err := os.Remove(pkgFilepath)
+					if err != nil {
+						log.Printf("Warning: could not remove old binary package (%s): %s", pkgFilepath, err)
+					}
+				}
+				bpmutilsshared.UpdateDatabases(repo)
+			}
+		} else {
+			outputPkgs[pkgInfo.Name] = line
+		}
+	}
+
+	// Print out generated packages
+	for k, v := range outputPkgs {
+		fmt.Printf("Package (%s) was successfully compiled! Binary package generated at: %s\n", k, v)
 	}
 
 	// Install compiled packages
-	if *installPackage && len(outputFiles) != 0 {
+	if *installPackage && len(outputPkgs) != 0 {
 		// Read BPM utils config
 		config, err := bpmutilsshared.ReadBPMUtilsConfig()
 		if err != nil {
@@ -184,7 +217,8 @@ func compilePackage(archive string) {
 		if *yesAll {
 			args = append(args, "-y")
 		}
-		args = append(args, outputFiles...)
+
+		args = append(args, slices.Collect(maps.Values(outputPkgs))...)
 		cmd = exec.Command(config.PrivilegeEscalatorCmd, args...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
