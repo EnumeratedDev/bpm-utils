@@ -3,7 +3,6 @@ package main
 import (
 	bpmutilsshared "bpm-utils-shared"
 	"bufio"
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -11,16 +10,18 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	flag "github.com/spf13/pflag"
 )
 
-var directory = flag.String("D", "", "Path to package directory (required)")
-var name = flag.String("n", "", "Set the package name")
-var description = flag.String("d", "Default Package Description", "Set the description")
-var version = flag.String("v", "1.0", "Set the package version")
-var url = flag.String("u", "", "Set the package URL")
-var license = flag.String("l", "", "Set the package licenses")
-var template = flag.String("t", "gnu-configure", "Set the package template")
-var git = flag.Bool("g", true, "Create git repository")
+var directory = flag.StringP("directory", "D", "", "Path to package directory")
+var name = flag.StringP("name", "n", "", "Set the package name")
+var description = flag.StringP("description", "d", "Default Package Description", "Set the description")
+var version = flag.StringP("version", "v", "1.0", "Set the package version")
+var url = flag.StringP("url", "u", "", "Set the package URL")
+var license = flag.StringP("license", "l", "", "Set the package licenses")
+var template = flag.StringP("template", "t", "gnu-configure", "Set the package template")
+var git = flag.BoolP("git", "g", true, "Create git repository")
 
 func main() {
 	// Setup flags and help
@@ -29,6 +30,7 @@ func main() {
 
 	// Show command help if no directory name is given
 	if *directory == "" {
+		log.Println("Directory flag is required")
 		bpmutilsshared.ShowHelp()
 		os.Exit(1)
 	}

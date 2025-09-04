@@ -2,7 +2,6 @@ package main
 
 import (
 	bpmutilsshared "bpm-utils-shared"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -11,14 +10,15 @@ import (
 	"path/filepath"
 	"strings"
 
+	flag "github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
 )
 
-var compile = flag.Bool("c", false, "Compile BPM source package")
-var skipCheck = flag.Bool("s", false, "Skip 'check' function while compiling")
-var installDepends = flag.Bool("d", false, "Install package dependencies for compilation")
-var installPackage = flag.Bool("i", false, "Install compiled BPM package after compilation finishes")
-var yesAll = flag.Bool("y", false, "Accept all confirmation prompts")
+var compile = flag.BoolP("compile", "c", false, "Compile BPM source package")
+var skipCheck = flag.BoolP("skip-checks", "s", false, "Skip 'check' function while compiling")
+var installDepends = flag.BoolP("depends", "d", false, "Install package dependencies for compilation")
+var installPackage = flag.BoolP("install", "i", false, "Install compiled BPM package after compilation finishes")
+var yesAll = flag.BoolP("yes", "y", false, "Accept all confirmation prompts")
 
 func main() {
 	// Setup flags and help

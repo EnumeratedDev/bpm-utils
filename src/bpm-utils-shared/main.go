@@ -1,10 +1,11 @@
 package bpm_utils_shared
 
 import (
-	"flag"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
+
+	flag "github.com/spf13/pflag"
+	"gopkg.in/yaml.v3"
 )
 
 var usageMsg string
