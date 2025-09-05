@@ -4,6 +4,7 @@ import (
 	bpmutilsshared "bpm-utils-shared"
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -162,6 +163,22 @@ func createDirectory() {
 		err = exec.Command("git", "init", *directory).Run()
 		if err != nil {
 			log.Fatalf("Error: could not initialize git repository: %s", err)
+		}
+
+		// Copy default gitignore
+		defaultGitignoreFile, err := os.Open("/etc/bpm-utils/gitignore.default")
+		if err != nil {
+			return
+		}
+		defer defaultGitignoreFile.Close()
+		newGitignoreFile, err := os.OpenFile(path.Join(*directory, ".gitignore"), os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatalf("Error: could not create .gitignore file: %s", err)
+		}
+
+		_, err = io.Copy(newGitignoreFile, defaultGitignoreFile)
+		if err != nil {
+			log.Fatalf("Error: could not copy data to .gitignore file: %s", err)
 		}
 	}
 }
