@@ -93,6 +93,18 @@ func createArchive() string {
 		log.Fatalf("Error: could not unmarshal pkg.info file")
 	}
 
+	// Remove old BPM archives in current directory
+	oldArchives, err := filepath.Glob("*.bpm")
+	if err != nil {
+		log.Printf("Warning: could not search for old BPM archives: %s", err)
+	}
+	for _, bpmArchive := range oldArchives {
+		err = os.Remove(bpmArchive)
+		if err != nil {
+			log.Printf("Warning: could not remove old BPM archive (%s): %s", bpmArchive, err)
+		}
+	}
+
 	// Create filename
 	filename := fmt.Sprintf("%s-%s-%d-%s-src.bpm", pkgInfo.Name, pkgInfo.Version, pkgInfo.Revision, pkgInfo.Arch)
 
