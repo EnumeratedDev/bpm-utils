@@ -1,6 +1,7 @@
 package bpm_utils_shared
 
 import (
+	"os"
 	"os/exec"
 
 	"gopkg.in/yaml.v3"
@@ -29,6 +30,41 @@ func ReadPacakgeInfo(path string) (*PackageInfo, error) {
 	// Extract package info using tar
 	cmd := exec.Command("tar", "-x", "-f", path, "pkg.info", "-O")
 	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	pkgInfo := &PackageInfo{
+		Name:            "",
+		Description:     "",
+		Version:         "",
+		Revision:        1,
+		Url:             "",
+		License:         "",
+		Arch:            "",
+		Type:            "",
+		Keep:            make([]string, 0),
+		Depends:         make([]string, 0),
+		MakeDepends:     make([]string, 0),
+		OptionalDepends: make([]string, 0),
+		Conflicts:       make([]string, 0),
+		Replaces:        make([]string, 0),
+		Provides:        make([]string, 0),
+		SplitPackages:   make([]*PackageInfo, 0),
+	}
+
+	// Unmarshal yaml
+	err = yaml.Unmarshal(output, pkgInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	return pkgInfo, nil
+}
+
+func ReadPacakgeInfoFromFile(path string) (*PackageInfo, error) {
+	// Extract package info using tar
+	output, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
