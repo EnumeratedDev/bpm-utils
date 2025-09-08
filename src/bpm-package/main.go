@@ -185,15 +185,6 @@ func compilePackage(archive string) {
 		pkgInfo, err := bpmutilsshared.ReadPacakgeInfo(line)
 
 		if repo := bpmutilsshared.GetRepository(); repo != "" && *moveToBinaryDir {
-			// Move package to binary dir
-			if err != nil {
-				log.Fatalf("Error: could not read package info: %s", err)
-			}
-			newPath := path.Join(repo, "binary", pkgInfo.Arch, path.Base(line))
-			os.MkdirAll(path.Dir(newPath), 0755)
-			os.Rename(line, newPath)
-			outputPkgs[pkgInfo.Name] = newPath
-
 			// Remove old package from binary dir
 			if database, err := bpmutilsshared.ReadDatabase(path.Join(repo, "binary/database.bpmdb")); err == nil {
 				if entry, ok := database.Entries[pkgInfo.Name]; ok {
@@ -203,8 +194,18 @@ func compilePackage(archive string) {
 						log.Printf("Warning: could not remove old binary package (%s): %s", pkgFilepath, err)
 					}
 				}
-				bpmutilsshared.UpdateDatabases(repo)
 			}
+
+			// Move package to binary dir
+			if err != nil {
+				log.Fatalf("Error: could not read package info: %s", err)
+			}
+			newPath := path.Join(repo, "binary", pkgInfo.Arch, path.Base(line))
+			os.MkdirAll(path.Dir(newPath), 0755)
+			os.Rename(line, newPath)
+			outputPkgs[pkgInfo.Name] = newPath
+
+			bpmutilsshared.UpdateDatabases(repo)
 		} else {
 			outputPkgs[pkgInfo.Name] = line
 		}
