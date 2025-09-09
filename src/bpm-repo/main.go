@@ -163,6 +163,7 @@ func checkVersionsFunc(repo string) {
 	}
 
 	pkgsWithoutScript := make([]string, 0)
+	pkgsIgnored := make([]string, 0)
 	pkgsWithError := make(map[string]error)
 	pkgsWithUpdates := make(map[string]struct {
 		OldVersion string
@@ -195,6 +196,16 @@ func checkVersionsFunc(repo string) {
 				continue
 			}
 			latestVersion = strings.TrimSpace(string(output))
+
+			// Check if package should be ignored
+			if latestVersion == "ignore" {
+				pkgsIgnored = append(pkgsIgnored, pkgInfo.Name)
+
+				// Remove cached status
+				delete(cachedVersions, pkgInfo.Name)
+
+				continue
+			}
 
 			// Ensure latest version is valid
 			if latestVersion == "" || latestVersion == "null" {
@@ -241,6 +252,11 @@ func checkVersionsFunc(repo string) {
 	}
 
 	if verbose {
+		// Print ignored packages
+		for _, pkg := range pkgsIgnored {
+			log.Printf("Warning: package (%s) was ignored\n", pkg)
+		}
+
 		// Print packages without check-version.sh script
 		for _, pkg := range pkgsWithoutScript {
 			log.Printf("Warning: package (%s) has no check-version.sh script\n", pkg)
@@ -259,6 +275,7 @@ func checkVersionsFunc(repo string) {
 	fmt.Println("Available updates:", len(pkgsWithUpdates))
 	fmt.Println("Up to date:", pkgsUpToDate)
 	fmt.Println("Missing script:", len(pkgsWithoutScript))
+	fmt.Println("Ignored: ", len(pkgsIgnored))
 	fmt.Println("Errors:", len(pkgsWithError))
 }
 
