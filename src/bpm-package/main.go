@@ -26,8 +26,7 @@ var yesAll = flag.BoolP("yes", "y", false, "Accept all confirmation prompts")
 
 func main() {
 	// Setup flags and help
-	bpmutilsshared.SetupHelp("bpm-package <options>", "Generates source BPM package from current directory")
-	bpmutilsshared.SetupFlags()
+	setupFlagsAndHelp("bpm-package <options>", "Generates source BPM package from current directory")
 
 	// Run checks
 	runChecks()
@@ -243,4 +242,14 @@ func compilePackage(archive string) {
 			log.Fatalf("Error: failed to install compiled BPM packages: %s", err)
 		}
 	}
+}
+
+func setupFlagsAndHelp(usage, desc string) {
+	flag.Usage = func() {
+		fmt.Println("Usage: " + usage)
+		fmt.Println("Description: " + desc)
+		fmt.Println("Options:")
+		flag.PrintDefaults()
+	}
+	flag.Parse()
 }

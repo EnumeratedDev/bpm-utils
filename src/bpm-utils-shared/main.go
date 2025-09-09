@@ -1,15 +1,10 @@
 package bpm_utils_shared
 
 import (
-	"fmt"
 	"os"
 
-	flag "github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
 )
-
-var usageMsg string
-var description string
 
 type BPMUtilsConfig struct {
 	PrivilegeEscalatorCmd string `yaml:"privilege_escalator_cmd"`
@@ -28,21 +23,4 @@ func ReadBPMUtilsConfig() (*BPMUtilsConfig, error) {
 	}
 
 	return config, nil
-}
-
-func SetupFlags() {
-	flag.Usage = ShowHelp
-	flag.Parse()
-}
-
-func SetupHelp(usage, desc string) {
-	usageMsg = usage
-	description = desc
-}
-
-func ShowHelp() {
-	fmt.Println("Usage: " + usageMsg)
-	fmt.Println("Description: " + description)
-	fmt.Println("Options:")
-	flag.PrintDefaults()
 }

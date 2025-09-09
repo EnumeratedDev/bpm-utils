@@ -20,20 +20,23 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var createRepo = flag.BoolP("create", "c", false, "Create a new BPM repository")
-var updateDatabases = flag.BoolP("update-databases", "u", false, "Update update source and binary databases in current repository")
-var checkVersions = flag.BoolP("check-versions", "v", false, "Get the latest version of each package")
-var listPackages = flag.BoolP("list", "l", false, "List packages")
-
-var verbose = flag.Bool("verbose", false, "Show additional information about current operation")
-var force = flag.BoolP("force", "f", false, "Force current operation to bypass certain conditions")
+var currentFlagSet *flag.FlagSet
 
 func main() {
-	// Setup flags and help
-	bpmutilsshared.SetupHelp("bpm-repo <options>", "Manage BPM repositories and databases")
-	bpmutilsshared.SetupFlags()
+	if len(os.Args) < 2 {
+		log.Println("Error: no subcommand")
+		listSubcommands()
+		os.Exit(1)
+	}
 
-	if *createRepo {
+	subcommand := os.Args[1]
+
+	switch subcommand {
+	case "create-repo", "c":
+		// Setup flags and help
+		flagset := flag.NewFlagSet("create-repo", flag.ExitOnError)
+		setupFlagsAndHelp(flagset, fmt.Sprintf("bpm-repo %s <options>", subcommand), "Create a new BPM repository", os.Args[:1])
+
 		// Get current database
 		repo := bpmutilsshared.GetRepository()
 		if repo != "" {
@@ -53,7 +56,11 @@ func main() {
 		}
 
 		createRepository(strings.TrimSpace(name), strings.TrimSpace(desc))
-	} else if *updateDatabases {
+	case "update-db", "u":
+		// Setup flags and help
+		flagset := flag.NewFlagSet("update-db", flag.ExitOnError)
+		setupFlagsAndHelp(flagset, fmt.Sprintf("bpm-repo %s <options>", subcommand), "Update update source and binary databases in current repository", os.Args[:1])
+
 		// Get current database
 		repo := bpmutilsshared.GetRepository()
 		if repo == "" {
@@ -61,15 +68,10 @@ func main() {
 		}
 
 		bpmutilsshared.UpdateDatabases(repo)
-	} else if *checkVersions {
-		// Get current database
-		repo := bpmutilsshared.GetRepository()
-		if repo == "" {
-			log.Fatal("Error: this command may only be run inside a BPM repository")
-		}
+	case "list", "l":
+		flagset := flag.NewFlagSet("list", flag.ExitOnError)
+		setupFlagsAndHelp(flagset, fmt.Sprintf("bpm-repo %s <options>", subcommand), "List packages", os.Args[:1])
 
-		checkVersionsFunc(repo)
-	} else if *listPackages {
 		// Get current database
 		repo := bpmutilsshared.GetRepository()
 		if repo == "" {
@@ -77,8 +79,25 @@ func main() {
 		}
 
 		listPackagesFunc(repo)
-	} else {
-		bpmutilsshared.ShowHelp()
+	case "check-versions", "v":
+		// Setup flags and help
+		flagset := flag.NewFlagSet("check-versions", flag.ExitOnError)
+		flagset.BoolP("verbose", "v", false, "Show additional information about the current operation")
+		flagset.BoolP("force", "f", false, "Force current operation to bypass certain conditions")
+		setupFlagsAndHelp(flagset, fmt.Sprintf("bpm-repo %s <options>", subcommand), "Manage BPM repositories and databases", os.Args[2:])
+		currentFlagSet = flagset
+
+		// Get current database
+		repo := bpmutilsshared.GetRepository()
+		if repo == "" {
+			log.Fatal("Error: this command may only be run inside a BPM repository")
+		}
+
+		checkVersionsFunc(repo)
+	default:
+		log.Println("Error: unknown subcommand")
+		listSubcommands()
+		os.Exit(1)
 	}
 }
 
@@ -98,6 +117,10 @@ func createRepository(name, description string) {
 }
 
 func checkVersionsFunc(repo string) {
+	// Get flags
+	verbose, _ := currentFlagSet.GetBool("verbose")
+	force, _ := currentFlagSet.GetBool("force")
+
 	// Read environment files
 	err := readEnvFile(repo)
 	if err != nil {
@@ -119,8 +142,8 @@ func checkVersionsFunc(repo string) {
 	}
 
 	directories := make([]string, 0)
-	if flag.NArg() > 0 {
-		for _, dir := range flag.Args() {
+	if currentFlagSet.NArg() > 0 {
+		for _, dir := range currentFlagSet.Args() {
 			if _, err := os.Stat(path.Join(repo, "source", dir, "pkg.info")); err != nil {
 				log.Fatalf("Error: could not find pkg.info file in directory (%s): %s", dir, err)
 			}
@@ -154,7 +177,7 @@ func checkVersionsFunc(repo string) {
 
 		// Check cached latest version
 		latestVersion := ""
-		if cachedVersion, ok := cachedVersions[pkgInfo.Name]; ok && !*force && time.Since(time.UnixMilli(cachedVersion.Timestamp)).Milliseconds() < 604800000 {
+		if cachedVersion, ok := cachedVersions[pkgInfo.Name]; ok && !force && time.Since(time.UnixMilli(cachedVersion.Timestamp)).Milliseconds() < 604800000 {
 			latestVersion = cachedVersion.LatestVersion
 		} else {
 			// Check whether check-version.sh script exists
@@ -217,7 +240,7 @@ func checkVersionsFunc(repo string) {
 		fmt.Printf("Update available for package (%s): %s -> %s\n", pkg, pkgsWithUpdates[pkg].OldVersion, pkgsWithUpdates[pkg].NewVersion)
 	}
 
-	if *verbose {
+	if verbose {
 		// Print packages without check-version.sh script
 		for _, pkg := range pkgsWithoutScript {
 			log.Printf("Warning: package (%s) has no check-version.sh script\n", pkg)
@@ -305,4 +328,24 @@ func readEnvFile(repo string) error {
 	}
 
 	return nil
+}
+
+func listSubcommands() {
+	fmt.Println("Usage: bpm-repo <subcommand> <options>")
+	fmt.Println("Description: Manage BPM repositories and databases")
+	fmt.Println("Subcommands:")
+	fmt.Println("  c, create-repo      Create a new BPM repository")
+	fmt.Println("  u, update-db        Update update source and binary databases in current repositor")
+	fmt.Println("  v, check-versions   Manage BPM repositories and databases")
+	fmt.Println("  l, list             List packages")
+}
+
+func setupFlagsAndHelp(flagset *flag.FlagSet, usage, desc string, args []string) {
+	flagset.Usage = func() {
+		fmt.Println("Usage: " + usage)
+		fmt.Println("Description: " + desc)
+		fmt.Println("Options:")
+		flagset.PrintDefaults()
+	}
+	flagset.Parse(args)
 }

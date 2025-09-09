@@ -1,7 +1,6 @@
 package main
 
 import (
-	bpmutilsshared "bpm-utils-shared"
 	"bufio"
 	"fmt"
 	"io"
@@ -26,13 +25,12 @@ var git = flag.BoolP("git", "g", true, "Create git repository")
 
 func main() {
 	// Setup flags and help
-	bpmutilsshared.SetupHelp("bpm-setup <options>", "Sets up files and directories for BPM source package creation")
-	bpmutilsshared.SetupFlags()
+	setupFlagsAndHelp("bpm-setup <options>", "Sets up files and directories for BPM source package creation")
 
 	// Show command help if no directory name is given
 	if *directory == "" {
-		log.Println("Directory flag is required")
-		bpmutilsshared.ShowHelp()
+		log.Println("Error: directory flag is required")
+		flag.Usage()
 		os.Exit(1)
 	}
 
@@ -181,4 +179,14 @@ func createDirectory() {
 			log.Fatalf("Error: could not copy data to .gitignore file: %s", err)
 		}
 	}
+}
+
+func setupFlagsAndHelp(usage, desc string) {
+	flag.Usage = func() {
+		fmt.Println("Usage: " + usage)
+		fmt.Println("Description: " + desc)
+		fmt.Println("Options:")
+		flag.PrintDefaults()
+	}
+	flag.Parse()
 }
