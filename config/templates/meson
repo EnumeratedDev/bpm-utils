@@ -22,7 +22,7 @@ build() {
 # The check function is executed in the source directory
 # This function is used to run tests to verify the package has been compiled correctly
 check() {
-  meson test -C build
+  meson test -C build --print-errorlogs
 }
 
 # The package function is executed in the source directory
