@@ -69,7 +69,7 @@ func createArchive() string {
 	// Check for package scripts and include them
 	for _, script := range []string{"pre_install.sh", "post_install.sh", "pre_update.sh", "post_update.sh", "pre_remove.sh", "post_remove.sh"} {
 		if stat, err := os.Stat(script); err == nil && stat.Mode().IsRegular() {
-			fmt.Printf("Package script '%s' found", script)
+			fmt.Printf("Package script '%s' found\n", script)
 			filesToInclude = append(filesToInclude, script)
 		}
 	}
