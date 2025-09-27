@@ -8,7 +8,7 @@ BPM Utils provides a number of different helper commands for creating and mainta
 ## Provided utilities
 - bpm-setup (Sets up directories for BPM source package creation)
 - bpm-repo (Allows for easy management of multiple-package repositories)
-- bpm-package (Turns a BPM package directory into a .bpm archive)
+- bpm-package (Turns a BPM source package directory into a .bpm archive)
 
 ## Installation
 #### Using a package manager
@@ -33,7 +33,7 @@ Creating a package for BPM with these utilities is simple
 bpm-setup -D my_package
 ```
 2) This will create a directory named `my_package` containing all files required for bpm package creation
-3) You may wish to edit the pkg.info descriptor file inside the newly created directory to include dependencies or add/change other information. Here's an example of what a descriptor  file could look like
+3) You may wish to edit the pkg.info metedata file inside the newly created directory to include dependencies or add/change other information. Here's an example of what a metedata file could look like
 ```yaml
 name: my_package
 description: My package's description
@@ -42,11 +42,23 @@ revision: 2 (Optional)
 url: https://www.my-website.com/ (Optional)
 license: MyLicense (Optional)
 architecture: x86_64
-depends: ["dependency1","dependency2"] (Optional)
-optional_depends: ["optional_depend1","optional_depend2"] (Optional)
-make_depends: ["make_depend1","make_depend2"] (Optional)
-keep: ["etc/my_config.conf"] (Optional)
 type: source
+depends:
+  - dependency1
+  - dependency2
+optional_depends:
+  - optional_depend1
+  - optional_depend2
+make_depends:
+  - make_depend1
+  - make_depend2
+keep:
+  - etc/my_config.conf
+downloads:
+  - url: https://wwww.my-url.com/file.tar.gz
+    extract_strip_components: 1
+    extract_to_bpm_source: true
+    checksum: 9d19c8884cb22a594ba06a4caa6a3088e15ddfd4f3ede8c3b9e8f5cbb5a4a7a8
 ```
 
 4) If you would like to bundle patches or other files with your package place them in the 'source-files' directory. They will be extracted to the same location as the source.sh file during compilation
@@ -55,4 +67,4 @@ type: source
 ```
 bpm-package
 ```
-7) The `bpm-package` command will output a binary bpm archive which can be installed by BPM using `bpm install <file.bpm>`. If you are operating inside a BPM repository created using `bpm-repo` the file will automatically be moved to the binary subdirectory of your package repository
+7) The `bpm-package` command will output a source bpm archive (and binary if passed the '-c' flag) which can be installed by BPM using `bpm install <file.bpm>`. If you are operating inside a BPM repository created using `bpm-repo` the file will automatically be moved to the binary subdirectory of your package repository
