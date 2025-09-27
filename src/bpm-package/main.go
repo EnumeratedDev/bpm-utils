@@ -2,6 +2,7 @@ package main
 
 import (
 	bpmutilsshared "bpm-utils-shared"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -22,6 +23,7 @@ var skipCheck = flag.BoolP("skip-checks", "s", false, "Skip 'check' function whi
 var installDepends = flag.BoolP("depends", "d", false, "Install package dependencies for compilation")
 var installPackage = flag.BoolP("install", "i", false, "Install compiled BPM package after compilation finishes")
 var moveToBinaryDir = flag.BoolP("move", "m", false, "Move output packages to the current repository's binary directory")
+var updateChecksums = flag.BoolP("update-checksums", "u", false, "Update the checksums for all download entries")
 var yesAll = flag.BoolP("yes", "y", false, "Accept all confirmation prompts")
 
 func main() {
@@ -74,22 +76,47 @@ func createArchive() string {
 		}
 	}
 
-	// Read pkg.info file into basic struct
-	pkgInfo := struct {
-		Name     string `yaml:"name"`
-		Version  string `yaml:"version"`
-		Revision int    `yaml:"revision"`
-		Arch     string `yaml:"architecture"`
-	}{
-		Revision: 1,
-	}
-	data, err := os.ReadFile("pkg.info")
+	// Read pkg.info file
+	pkgInfo, err := bpmutilsshared.ReadPacakgeInfoFromFile("pkg.info")
 	if err != nil {
-		log.Fatalf("Error: could not read pkg.info file")
+		log.Fatalf("Error: could not read package info: %s", err)
 	}
-	err = yaml.Unmarshal(data, &pkgInfo)
-	if err != nil {
-		log.Fatalf("Error: could not unmarshal pkg.info file")
+
+	// Update checksums
+	if *updateChecksums {
+		for i, download := range pkgInfo.Downloads {
+			if download.Checksum == "skip" {
+				continue
+			}
+
+			download.Checksum, err = download.CalculateChecksum(pkgInfo)
+			if err != nil {
+				log.Fatalf("Could not calculate checksum for download entry %d: %s", i+1, err)
+			}
+
+			pkgInfo.Downloads[i] = download
+		}
+
+		// Save yaml back to file
+		var data bytes.Buffer
+		encoder := yaml.NewEncoder(&data)
+		encoder.SetIndent(2)
+		encoder.Encode(pkgInfo)
+		if err != nil {
+			log.Fatalf("Could not marshal package info: %s", err)
+		}
+
+		// Stat pkg.info
+		stat, err := os.Stat("pkg.info")
+		if err != nil {
+			log.Fatalf("Could not stat pkg.info: %s", err)
+		}
+
+		// Write package info back to file
+		err = os.WriteFile("pkg.info", data.Bytes(), stat.Mode().Perm())
+		if err != nil {
+			log.Fatalf("Could not write package info to pkg.info: %s", err)
+		}
 	}
 
 	// Remove old BPM archives in current directory
