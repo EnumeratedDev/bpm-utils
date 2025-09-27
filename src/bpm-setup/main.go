@@ -1,7 +1,9 @@
 package main
 
 import (
+	bpmutilsshared "bpm-utils-shared"
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -12,6 +14,7 @@ import (
 	"strings"
 
 	flag "github.com/spf13/pflag"
+	yaml "gopkg.in/yaml.v3"
 )
 
 var directory = flag.StringP("directory", "D", "", "Path to package directory")
@@ -115,21 +118,32 @@ func createDirectory() {
 		log.Fatalf("Error: could not create directory: %s", err)
 	}
 
-	// Create pkg.info contents string
-	pkgInfo := "name: " + *name + "\n"
-	pkgInfo += "description: " + *description + "\n"
-	pkgInfo += "version: " + *version + "\n"
-	if url != nil && *url != "" {
-		pkgInfo += "url: " + *url + "\n"
+	// Create package info struct
+	pkgInfo := bpmutilsshared.PackageInfo{
+		Name:        *name,
+		Description: *description,
+		Version:     *version,
+		Url:         *url,
+		License:     *license,
+		Arch:        "any",
+		Type:        "source",
+		Downloads: []bpmutilsshared.PackageDownload{
+			{
+				Url:                    "https://wwww.my-url.com/file.tar.gz",
+				ExtractStripComponents: 1,
+				ExtractToBPMSource:     true,
+				Checksum:               "replaceme",
+			},
+		},
 	}
-	if license != nil && *license != "" {
-		pkgInfo += "license: " + *license + "\n"
-	}
-	pkgInfo += "architecture: any\n"
-	pkgInfo += "type: source\n"
 
-	// Write string to file
-	err = os.WriteFile(path.Join(*directory, "pkg.info"), []byte(pkgInfo), 0644)
+	var buffer bytes.Buffer
+	encoder := yaml.NewEncoder(&buffer)
+	encoder.SetIndent(2)
+	encoder.Encode(&pkgInfo)
+
+	// Write package info to file
+	err = os.WriteFile(path.Join(*directory, "pkg.info"), buffer.Bytes(), 0644)
 	if err != nil {
 		log.Fatalf("Could not write to pkg.info: %s", err)
 	}
