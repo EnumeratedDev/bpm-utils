@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/drone/envsubst"
 	"gopkg.in/yaml.v3"
 )
 
@@ -123,7 +124,7 @@ func (pkgDownload *PackageDownload) CalculateChecksum(pkgInfo *PackageInfo) (str
 
 		// Replace variables in download url
 		downloadUrl := pkgDownload.Url
-		downloadUrl = os.Expand(downloadUrl, func(s string) string {
+		downloadUrl, err := envsubst.Eval(downloadUrl, func(s string) string {
 			switch s {
 			case "BPM_PKG_VERSION":
 				return pkgInfo.Version
@@ -133,6 +134,9 @@ func (pkgDownload *PackageDownload) CalculateChecksum(pkgInfo *PackageInfo) (str
 				return ""
 			}
 		})
+		if err != nil {
+			return "", err
+		}
 
 		cmd := exec.Command("sh", "-c", fmt.Sprintf("curl -s -L %s | sha256sum | awk '{print $1}'", downloadUrl))
 		cmd.Stderr = os.Stderr
@@ -148,7 +152,7 @@ func (pkgDownload *PackageDownload) CalculateChecksum(pkgInfo *PackageInfo) (str
 
 		// Replace variables in git branch
 		gitBranch := pkgDownload.GitBranch
-		gitBranch = os.Expand(gitBranch, func(s string) string {
+		gitBranch, err := envsubst.Eval(gitBranch, func(s string) string {
 			switch s {
 			case "BPM_PKG_VERSION":
 				return pkgInfo.Version
@@ -158,6 +162,9 @@ func (pkgDownload *PackageDownload) CalculateChecksum(pkgInfo *PackageInfo) (str
 				return ""
 			}
 		})
+		if err != nil {
+			return "", err
+		}
 
 		if pkgDownload.GitBranch == "" {
 			return "", fmt.Errorf("'git_branch' field cannot be empty")

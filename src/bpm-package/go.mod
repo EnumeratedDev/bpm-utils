@@ -8,4 +8,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+require github.com/drone/envsubst v1.0.3 // indirect
+
 replace bpm-utils-shared => ../bpm-utils-shared
