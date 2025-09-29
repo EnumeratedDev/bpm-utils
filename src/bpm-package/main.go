@@ -208,7 +208,7 @@ func compilePackage(archive string) {
 	outputPkgs := make(map[string]string)
 	for _, line := range strings.Split(strings.TrimSpace(string(cmdOutput)), "\n") {
 		// Read generated package info
-		pkgInfo, err := bpmutilsshared.ReadPacakgeInfo(line)
+		pkgInfo, err := bpmutilsshared.ReadPacakgeInfoFromTarball(line)
 
 		if repo := bpmutilsshared.GetRepository(); repo != "" && *moveToBinaryDir {
 			// Remove old package from binary dir

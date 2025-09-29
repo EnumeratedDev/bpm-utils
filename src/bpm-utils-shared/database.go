@@ -78,7 +78,7 @@ func GenerateDatabase(path string) error {
 		}
 
 		// Get package info
-		entry.PackageInfo, err = ReadPacakgeInfo(packagePath)
+		entry.PackageInfo, err = ReadPacakgeInfoFromTarball(packagePath)
 		if err != nil {
 			return err
 		}

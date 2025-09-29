@@ -12,8 +12,8 @@ import (
 
 type PackageInfo struct {
 	Name            string            `yaml:"name"`
-	Description     string            `yaml:"description"`
-	Version         string            `yaml:"version"`
+	Description     string            `yaml:"description,omitempty"`
+	Version         string            `yaml:"version,omitempty"`
 	Revision        int               `yaml:"revision,omitempty"`
 	Url             string            `yaml:"url,omitempty"`
 	License         string            `yaml:"license,omitempty"`
@@ -42,24 +42,9 @@ type PackageDownload struct {
 	Checksum               string `yaml:"checksum,omitempty"`
 }
 
-func ReadPacakgeInfo(path string) (*PackageInfo, error) {
-	// Extract package info using tar
-	cmd := exec.Command("tar", "-x", "-f", path, "pkg.info", "-O")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
-
+func ReadPackageInfo(data []byte) (*PackageInfo, error) {
 	pkgInfo := &PackageInfo{
-		Name:            "",
-		Description:     "",
-		Version:         "",
 		Revision:        1,
-		Url:             "",
-		License:         "",
-		Arch:            "",
-		OutputArch:      "",
-		Type:            "",
 		Keep:            make([]string, 0),
 		Depends:         make([]string, 0),
 		MakeDepends:     make([]string, 0),
@@ -72,7 +57,23 @@ func ReadPacakgeInfo(path string) (*PackageInfo, error) {
 	}
 
 	// Unmarshal yaml
-	err = yaml.Unmarshal(output, pkgInfo)
+	err := yaml.Unmarshal(data, pkgInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	return pkgInfo, nil
+}
+
+func ReadPacakgeInfoFromTarball(path string) (*PackageInfo, error) {
+	// Extract package info using tar
+	cmd := exec.Command("tar", "-x", "-f", path, "pkg.info", "-O")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	pkgInfo, err := ReadPackageInfo(output)
 	if err != nil {
 		return nil, err
 	}
@@ -81,35 +82,13 @@ func ReadPacakgeInfo(path string) (*PackageInfo, error) {
 }
 
 func ReadPacakgeInfoFromFile(path string) (*PackageInfo, error) {
-	// Extract package info using tar
+	// Read data from file
 	output, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	pkgInfo := &PackageInfo{
-		Name:            "",
-		Description:     "",
-		Version:         "",
-		Revision:        1,
-		Url:             "",
-		License:         "",
-		Arch:            "",
-		OutputArch:      "",
-		Type:            "",
-		Keep:            make([]string, 0),
-		Depends:         make([]string, 0),
-		OptionalDepends: make([]string, 0),
-		MakeDepends:     make([]string, 0),
-		Conflicts:       make([]string, 0),
-		Replaces:        make([]string, 0),
-		Provides:        make([]string, 0),
-		Downloads:       make([]PackageDownload, 0),
-		SplitPackages:   make([]*PackageInfo, 0),
-	}
-
-	// Unmarshal yaml
-	err = yaml.Unmarshal(output, pkgInfo)
+	pkgInfo, err := ReadPackageInfo(output)
 	if err != nil {
 		return nil, err
 	}
