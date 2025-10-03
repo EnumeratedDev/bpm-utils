@@ -3,6 +3,7 @@ package main
 import (
 	bpmutilsshared "bpm-utils-shared"
 	"bufio"
+	"context"
 	"fmt"
 	"io/fs"
 	"log"
@@ -176,6 +177,10 @@ func checkVersionsFunc(repo string) {
 			log.Fatalf("Could not read package info: %s", err)
 		}
 
+		if verbose {
+			fmt.Printf("Checking version for package (%s)...\n", pkgInfo.Name)
+		}
+
 		// Check cached latest version
 		latestVersion := ""
 		if cachedVersion, ok := cachedVersions[pkgInfo.Name]; ok && !force && time.Since(time.UnixMilli(cachedVersion.Timestamp)).Milliseconds() < 604800000 {
@@ -188,7 +193,9 @@ func checkVersionsFunc(repo string) {
 			}
 
 			// Execute check-version.sh script
-			cmd := exec.Command("bash", "-e", path.Join(dir, "check-version.sh"))
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, "bash", "-e", path.Join(dir, "check-version.sh"))
 			cmd.Environ()
 			output, err := cmd.Output()
 			if err != nil {
@@ -261,13 +268,13 @@ func checkVersionsFunc(repo string) {
 		for _, pkg := range pkgsWithoutScript {
 			log.Printf("Warning: package (%s) has no check-version.sh script\n", pkg)
 		}
+	}
 
-		// Print errors
-		keys = slices.Collect(maps.Keys(pkgsWithError))
-		sort.Strings(keys)
-		for _, pkg := range keys {
-			log.Printf("Error: check-version.sh script for package (%s) failed: %s", pkg, pkgsWithError[pkg])
-		}
+	// Print errors
+	keys = slices.Collect(maps.Keys(pkgsWithError))
+	sort.Strings(keys)
+	for _, pkg := range keys {
+		log.Printf("Error: check-version.sh script for package (%s) failed: %s", pkg, pkgsWithError[pkg])
 	}
 
 	// Print summary
