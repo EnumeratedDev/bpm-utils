@@ -169,7 +169,7 @@ func compilePackage(archive string) {
 	if *yesAll {
 		args = append(args, "-y")
 	}
-	args = append(args, "--fd=3")
+	args = append(args, "--output-fd=3")
 	args = append(args, archive)
 	cmd := exec.Command("bpm", args...)
 	cmd.Stdin = os.Stdin
