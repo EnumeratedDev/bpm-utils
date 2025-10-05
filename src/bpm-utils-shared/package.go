@@ -149,7 +149,7 @@ func (pkgDownload *PackageDownload) CalculateChecksum(pkgInfo *PackageInfo) (str
 			return "", fmt.Errorf("'git_branch' field cannot be empty")
 		}
 
-		cmd := exec.Command("sh", "-c", fmt.Sprintf("git ls-remote --refs %s | grep 'refs/.*/%s$' | awk '{print $1}'", pkgDownload.Url, gitBranch))
+		cmd := exec.Command("sh", "-c", fmt.Sprintf("git ls-remote -bt %s | grep -E 'refs/.*/%s(\\^\\{\\})?$' | tail -n1 | awk '{print $1}'", pkgDownload.Url, gitBranch))
 		cmd.Stderr = os.Stderr
 
 		checksum, err := cmd.Output()
