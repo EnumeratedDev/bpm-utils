@@ -2,31 +2,29 @@
 # BPM Expects the source code to be extracted into the automatically created 'source' directory which can be accessed using $BPM_SOURCE
 # BPM Expects the output files to be present in the automatically created 'output' directory which can be accessed using $BPM_OUTPUT
 
-DOWNLOAD="https://wwww.my-url.com/file.tar.gz"
-FILENAME="${DOWNLOAD##*/}"
-
 # The prepare function is executed in the root of the temp directory
-# This function is used for downloading files and putting them into the correct location
+# This function is used for putting downloaded files to the correct location or applying patches
 prepare() {
-  wget "$DOWNLOAD"
-  tar -xvf "$FILENAME" --strip-components=1 -C "$BPM_SOURCE"
+  echo "You may remove this function if you do not intend to use it"
 }
 
 # The build function is executed in the source directory
 # This function is used to compile the source code
 build() {
-  ./configure --prefix=/usr
-  make
+  python3 -m build --wheel --no-isolation .
 }
 
 # The check function is executed in the source directory
 # This function is used to run tests to verify the package has been compiled correctly
 check() {
-  make check
+  # Python module testing command varies from module to module
 }
 
 # The package function is executed in the source directory
 # This function is used to move the compiled files into the output directory
 package() {
-  make DESTDIR="$BPM_OUTPUT" install
+  python3 -m installer --destdir="$BPM_OUTPUT" dist/*.whl
+
+  # Install package license
+  install -Dm644 "$BPM_SOURCE"/LICENSE "$BPM_OUTPUT"/usr/share/licenses/$NAME/LICENSE
 }

@@ -1,0 +1,32 @@
+# This is the source.sh script. It is executed by BPM in a temporary directory when compiling a source package
+# BPM Expects the source code to be extracted into the automatically created 'source' directory which can be accessed using $BPM_SOURCE
+# BPM Expects the output files to be present in the automatically created 'output' directory which can be accessed using $BPM_OUTPUT
+
+# The prepare function is executed in the root of the temp directory
+# This function is used for putting downloaded files to the correct location or applying patches
+prepare() {
+  cd "$BPM_SOURCE"
+  # Fetch cargo dependencies
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+# The build function is executed in the source directory
+# This function is used to compile the source code
+build() {
+  cargo build --release --frozen --workspace
+}
+
+# The check function is executed in the source directory
+# This function is used to run tests to verify the package has been compiled correctly
+check() {
+  cargo test --frozen
+}
+
+# The package function is executed in the source directory
+# This function is used to move the compiled files into the output directory
+package() {
+  find target/release -maxdepth 1 -type f -executable -exec install -Dm755 -t "$BPM_OUTPUT"/usr/bin {} +
+
+  # Install package license
+  install -Dm644 "$BPM_SOURCE"/LICENSE "$BPM_OUTPUT"/usr/share/licenses/$NAME/LICENSE
+}
