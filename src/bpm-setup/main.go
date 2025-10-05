@@ -130,8 +130,8 @@ func createDirectory() {
 		Downloads: []bpmutilsshared.PackageDownload{
 			{
 				Url:                    "https://wwww.my-url.com/file.tar.gz",
+				ExtractTo:              "${BPM_SOURCE}",
 				ExtractStripComponents: 1,
-				ExtractToBPMSource:     true,
 				Checksum:               "replaceme",
 			},
 		},
