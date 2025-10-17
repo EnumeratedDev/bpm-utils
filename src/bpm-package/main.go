@@ -20,6 +20,7 @@ import (
 
 var compile = flag.BoolP("compile", "c", false, "Compile BPM source package")
 var skipCheck = flag.BoolP("skip-checks", "s", false, "Skip 'check' function while compiling")
+var keepCompilationFiles = flag.BoolP("keep", "k", false, "Keep compilation files after successful package compilation")
 var installDepends = flag.BoolP("depends", "d", false, "Install package dependencies for compilation")
 var installPackage = flag.BoolP("install", "i", false, "Install compiled BPM package after compilation finishes")
 var moveToBinaryDir = flag.BoolP("move", "m", false, "Move output packages to the current repository's binary directory")
@@ -162,6 +163,9 @@ func compilePackage(archive string) {
 	args = append(args, "compile")
 	if *skipCheck {
 		args = append(args, "-s")
+	}
+	if *keepCompilationFiles {
+		args = append(args, "-k")
 	}
 	if *installDepends {
 		args = append(args, "-d")
