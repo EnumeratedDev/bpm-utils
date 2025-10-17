@@ -231,10 +231,12 @@ func compilePackage(archive string) {
 			os.Rename(line, newPath)
 			outputPkgs[pkgInfo.Name] = newPath
 
-			bpmutilsshared.UpdateDatabases(repo)
 		} else {
 			outputPkgs[pkgInfo.Name] = line
 		}
+	}
+	if repo := bpmutilsshared.GetRepository(); repo != "" && *moveToBinaryDir {
+		bpmutilsshared.UpdateDatabases(repo)
 	}
 
 	// Print out generated packages
