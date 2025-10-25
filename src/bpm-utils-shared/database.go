@@ -58,22 +58,9 @@ func GenerateDatabase(path string) error {
 		// Initialize database entry
 		entry := BPMDatabaseEntry{}
 		entry.DownloadSize = info.Size()
+		entry.InstalledSize = 0
 		entry.Filepath, err = filepath.Rel(path, packagePath)
 		if err != nil {
-			return err
-		}
-
-		// Get package installed size
-		cmd := exec.Command("tar", "-t", "-v", "-f", packagePath, "files.tar.gz")
-		output, err := cmd.Output()
-		if err == nil {
-			entry.InstalledSize, err = strconv.ParseInt(strings.Fields(string(output))[2], 10, 64)
-			if err != nil {
-				return err
-			}
-		} else if err.(*exec.ExitError).ExitCode() == 2 {
-			entry.InstalledSize = 0
-		} else {
 			return err
 		}
 
@@ -81,6 +68,32 @@ func GenerateDatabase(path string) error {
 		entry.PackageInfo, err = ReadPacakgeInfoFromTarball(packagePath)
 		if err != nil {
 			return err
+		}
+
+		// Get package installed size
+		if entry.PackageInfo.Type == "binary" {
+			cmd := exec.Command("tar", "xf", packagePath, "pkg.files", "-O")
+			output, err := cmd.Output()
+			if err != nil {
+				return err
+			}
+
+			for _, line := range strings.Split(string(output), "\n") {
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+				stringEntry := strings.Split(line, " ")
+				if len(stringEntry) < 5 {
+					return fmt.Errorf("pkg.files is not formatted correctly")
+				}
+				size, err := strconv.ParseInt(stringEntry[len(stringEntry)-1], 10, 64)
+				if err != nil {
+					return err
+				}
+
+				entry.InstalledSize += size
+			}
 		}
 
 		// Add entry to database
