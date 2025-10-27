@@ -19,6 +19,7 @@ import (
 )
 
 var compile = flag.BoolP("compile", "c", false, "Compile BPM source package")
+var verbose = flag.BoolP("verbose", "v", false, "Show additional information about the compilation process")
 var skipCheck = flag.BoolP("skip-checks", "s", false, "Skip 'check' function while compiling")
 var keepCompilationFiles = flag.BoolP("keep", "k", false, "Keep compilation files after successful package compilation")
 var installDepends = flag.BoolP("depends", "d", false, "Install package dependencies for compilation")
@@ -161,6 +162,9 @@ func compilePackage(archive string) {
 	// Setup compile command
 	args := make([]string, 0)
 	args = append(args, "compile")
+	if *verbose {
+		args = append(args, "-v")
+	}
 	if *skipCheck {
 		args = append(args, "-s")
 	}
