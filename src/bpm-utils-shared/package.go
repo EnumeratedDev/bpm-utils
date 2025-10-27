@@ -27,6 +27,7 @@ type PackageInfo struct {
 	Conflicts       []string          `yaml:"conflicts,omitempty"`
 	Replaces        []string          `yaml:"replaces,omitempty"`
 	Provides        []string          `yaml:"provides,omitempty"`
+	Options         []string          `yaml:"options,omitempty"`
 	Downloads       []PackageDownload `yaml:"downloads,omitempty"`
 	SplitPackages   []*PackageInfo    `yaml:"split_packages,omitempty"`
 }
@@ -58,6 +59,7 @@ func ReadPackageInfo(data []byte) (*PackageInfo, error) {
 		Conflicts:       make([]string, 0),
 		Replaces:        make([]string, 0),
 		Provides:        make([]string, 0),
+		Options:         make([]string, 0),
 		Downloads:       make([]PackageDownload, 0),
 		SplitPackages:   make([]*PackageInfo, 0),
 	}
