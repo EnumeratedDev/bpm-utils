@@ -114,6 +114,11 @@ func createRepository(name, description string) {
 		log.Fatalf("Error: could not write to file: %s", err)
 	}
 
+	err = os.Mkdir(path.Join(name, "source"), 0755)
+	if err != nil {
+		log.Fatalf("Error: could not create directory: %s", err)
+	}
+
 	fmt.Println("Repository created successfully!")
 }
 
