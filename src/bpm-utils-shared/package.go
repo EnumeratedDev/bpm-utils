@@ -22,6 +22,7 @@ type PackageInfo struct {
 	Type            string            `yaml:"type,omitempty"`
 	Keep            []string          `yaml:"keep,omitempty"`
 	Depends         []string          `yaml:"depends,omitempty"`
+	RuntimeDepends  []string          `yaml:"runtime_depends,omitempty"`
 	OptionalDepends []string          `yaml:"optional_depends,omitempty"`
 	MakeDepends     []string          `yaml:"make_depends,omitempty"`
 	Conflicts       []string          `yaml:"conflicts,omitempty"`
@@ -55,6 +56,7 @@ func ReadPackageInfo(data []byte) (*PackageInfo, error) {
 		Keep:            make([]string, 0),
 		Depends:         make([]string, 0),
 		MakeDepends:     make([]string, 0),
+		RuntimeDepends:  make([]string, 0),
 		OptionalDepends: make([]string, 0),
 		Conflicts:       make([]string, 0),
 		Replaces:        make([]string, 0),
