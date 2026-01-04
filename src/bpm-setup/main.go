@@ -123,6 +123,7 @@ func createDirectory() {
 		Name:        *name,
 		Description: *description,
 		Version:     *version,
+		Revision:    1,
 		Url:         *url,
 		License:     *license,
 		Arch:        "any",
