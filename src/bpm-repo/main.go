@@ -3,6 +3,7 @@ package main
 import (
 	bpmutilsshared "bpm-utils-shared"
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io/fs"
@@ -85,6 +86,7 @@ func main() {
 		flagset := flag.NewFlagSet("check-versions", flag.ExitOnError)
 		flagset.BoolP("verbose", "v", false, "Show additional information about the current operation")
 		flagset.BoolP("force", "f", false, "Force current operation to bypass certain conditions")
+		flagset.BoolP("apply", "a", false, "Apply new versions to packages")
 		setupFlagsAndHelp(flagset, fmt.Sprintf("bpm-repo %s <options>", subcommand), "Manage BPM repositories and databases", os.Args[2:])
 		currentFlagSet = flagset
 
@@ -126,6 +128,7 @@ func checkVersionsFunc(repo string) {
 	// Get flags
 	verbose, _ := currentFlagSet.GetBool("verbose")
 	force, _ := currentFlagSet.GetBool("force")
+	apply, _ := currentFlagSet.GetBool("apply")
 
 	// Read environment files
 	err := readEnvFile(repo)
@@ -241,6 +244,23 @@ func checkVersionsFunc(repo string) {
 				OldVersion: pkgInfo.Version,
 				NewVersion: latestVersion,
 			}
+
+			// Apply new version
+			pkgInfo.Version = latestVersion
+			pkgInfo.Revision = 1
+			if apply {
+				var data bytes.Buffer
+				encoder := yaml.NewEncoder(&data)
+				encoder.SetIndent(2)
+				encoder.Encode(pkgInfo)
+
+				fmt.Println(path.Join(dir, "pkg.info"))
+				err := os.WriteFile(path.Join(dir, "pkg.info"), data.Bytes(), 0644)
+				if err != nil {
+					log.Printf("Warning: could not write new version for package (%s) to file: %s", pkgInfo.Name, err)
+				}
+			}
+
 			continue
 		}
 
