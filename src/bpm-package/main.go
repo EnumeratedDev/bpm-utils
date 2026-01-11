@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	flag "github.com/spf13/pflag"
@@ -24,6 +25,7 @@ var skipCheck = flag.BoolP("skip-checks", "s", false, "Skip 'check' function whi
 var keepCompilationFiles = flag.BoolP("keep", "k", false, "Keep compilation files after successful package compilation")
 var installDepends = flag.BoolP("depends", "d", false, "Install package dependencies for compilation")
 var installPackage = flag.BoolP("install", "i", false, "Install compiled BPM package after compilation finishes")
+var compilationJobs = flag.IntP("jobs", "j", 0, "Set the amount of concurrent processes to use for source package compilation")
 var moveToBinaryDir = flag.BoolP("move", "m", false, "Move output packages to the current repository's binary directory")
 var updateChecksums = flag.BoolP("update-checksums", "u", false, "Update the checksums for all download entries")
 var yesAll = flag.BoolP("yes", "y", false, "Accept all confirmation prompts")
@@ -173,6 +175,9 @@ func compilePackage(archive string) {
 	}
 	if *installDepends {
 		args = append(args, "-d")
+	}
+	if *compilationJobs > 0 {
+		args = append(args, "-j"+strconv.Itoa(*compilationJobs))
 	}
 	if *yesAll {
 		args = append(args, "-y")
