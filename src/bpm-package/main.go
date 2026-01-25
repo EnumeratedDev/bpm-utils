@@ -27,7 +27,7 @@ var installDepends = flag.BoolP("depends", "d", false, "Install package dependen
 var installPackage = flag.BoolP("install", "i", false, "Install compiled BPM package after compilation finishes")
 var compilationJobs = flag.IntP("jobs", "j", 0, "Set the amount of concurrent processes to use for source package compilation")
 var moveToBinaryDir = flag.BoolP("move", "m", false, "Move output packages to the current repository's binary directory")
-var updateChecksums = flag.BoolP("update-checksums", "u", false, "Update the checksums for all download entries")
+var updateInfo = flag.BoolP("update-info", "u", false, "Update the pkg.info file")
 var yesAll = flag.BoolP("yes", "y", false, "Accept all confirmation prompts")
 
 func main() {
@@ -86,8 +86,9 @@ func createArchive() string {
 		log.Fatalf("Error: could not read package info: %s", err)
 	}
 
-	// Update checksums
-	if *updateChecksums {
+	// Update pkg.info file
+	if *updateInfo {
+		// Update download checksums
 		for i, download := range pkgInfo.Downloads {
 			if download.Checksum == "skip" {
 				continue
