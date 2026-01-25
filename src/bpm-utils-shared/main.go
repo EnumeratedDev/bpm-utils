@@ -8,6 +8,7 @@ import (
 
 type BPMUtilsConfig struct {
 	PrivilegeEscalatorCmd string `yaml:"privilege_escalator_cmd"`
+	DefaultMaintainer     string `yaml:"default_maintainer,omitempty"`
 }
 
 func ReadBPMUtilsConfig() (*BPMUtilsConfig, error) {

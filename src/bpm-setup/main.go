@@ -108,12 +108,18 @@ func replaceVariables(templateContents string) string {
 }
 
 func createDirectory() {
+	// Read BPM utils config
+	config, err := bpmutilsshared.ReadBPMUtilsConfig()
+	if err != nil {
+		log.Fatalf("Error: failed to read config: %s", err)
+	}
+
 	// Trim spaces
 	*directory = strings.TrimSpace(*directory)
 	*name = strings.TrimSpace(*name)
 
 	// Create directory
-	err := os.Mkdir(*directory, 0755)
+	err = os.Mkdir(*directory, 0755)
 	if err != nil {
 		log.Fatalf("Error: could not create directory: %s", err)
 	}
@@ -136,6 +142,9 @@ func createDirectory() {
 				Checksum:               "replaceme",
 			},
 		},
+	}
+	if config.DefaultMaintainer != "" {
+		pkgInfo.Maintainers = append(pkgInfo.Maintainers, config.DefaultMaintainer)
 	}
 
 	var buffer bytes.Buffer
