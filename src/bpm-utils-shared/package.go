@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/drone/envsubst"
@@ -73,6 +74,10 @@ func ReadPackageInfo(data []byte) (*PackageInfo, error) {
 	}
 
 	return pkgInfo, nil
+}
+
+func (pkgInfo *PackageInfo) GetFullVersion() string {
+	return pkgInfo.Version + "-" + strconv.Itoa(pkgInfo.Revision)
 }
 
 func ReadPacakgeInfoFromTarball(path string) (*PackageInfo, error) {

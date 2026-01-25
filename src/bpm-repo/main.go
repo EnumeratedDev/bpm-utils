@@ -97,6 +97,22 @@ func main() {
 		}
 
 		checkVersionsFunc(repo)
+	case "compile-all", "a":
+		// Setup flags and help
+		flagset := flag.NewFlagSet("check-versions", flag.ExitOnError)
+		flagset.BoolP("verbose", "v", false, "Show additional information about the current operation")
+		flagset.BoolP("modified", "m", true, "Skip non-modified source packages")
+		flagset.BoolP("show-order", "o", false, "Show the order in which all packages will be compiled and exit")
+		setupFlagsAndHelp(flagset, fmt.Sprintf("bpm-repo %s <options>", subcommand), "Manage BPM repositories and databases", os.Args[2:])
+		currentFlagSet = flagset
+
+		// Get current database
+		repo := bpmutilsshared.GetRepository()
+		if repo == "" {
+			log.Fatal("Error: this command may only be run inside a BPM repository")
+		}
+
+		compileAllPackagesFunc(repo)
 	default:
 		log.Println("Error: unknown subcommand")
 		listSubcommands()
@@ -362,6 +378,130 @@ func listPackagesFunc(repo string) {
 	}
 }
 
+func compileAllPackagesFunc(repo string) {
+	// Get flags
+	verbose, _ := currentFlagSet.GetBool("verbose")
+	modifiedOnly, _ := currentFlagSet.GetBool("modified")
+	showOrder, _ := currentFlagSet.GetBool("show-order")
+
+	// Read BPM utils config
+	config, err := bpmutilsshared.ReadBPMUtilsConfig()
+	if err != nil {
+		log.Fatalf("Error: failed to read config: %s", err)
+	}
+
+	// Ensure database is updated
+	bpmutilsshared.UpdateDatabases(repo)
+
+	// Read databases
+	sourceDatabase, err := bpmutilsshared.ReadDatabase(path.Join(repo, "source/database.bpmdb"))
+	if err != nil {
+		log.Fatalf("Error: could not read source database: %s", err)
+	}
+	binaryDatabase, _ := bpmutilsshared.ReadDatabase(path.Join(repo, "binary/database.bpmdb"))
+
+	// Get all packages from database entries
+	packages := slices.Collect(maps.Values(sourceDatabase.Entries))
+	sort.Slice(packages, func(a, b int) bool {
+		return packages[a].PackageInfo.Name < packages[b].PackageInfo.Name
+	})
+
+	// Toposort packages using Depth-first search algorithm
+	sorted := make([]bpmutilsshared.PackageInfo, 0)
+	marked := make(map[string]int) // 0 = Unmarked, 1 = Temporary mark, 2 = Permanent mark
+	var visit func(pkgInfo *bpmutilsshared.PackageInfo) error
+	visit = func(pkgInfo *bpmutilsshared.PackageInfo) error {
+		if mark, _ := marked[pkgInfo.Name]; mark == 2 {
+			return nil
+		} else if mark == 1 {
+			return fmt.Errorf("Circular dependency found!")
+		}
+
+		marked[pkgInfo.Name] = 1
+
+		// Get all dependencies
+		depends := slices.Clone(pkgInfo.Depends)
+		depends = append(depends, pkgInfo.MakeDepends...)
+
+		for _, depend := range depends {
+			// Find package in repository
+			dependEntry, ok := sourceDatabase.Entries[depend]
+			if !ok {
+				// Search for virtual package
+				for _, entry := range sourceDatabase.Entries {
+					if slices.Contains(entry.PackageInfo.Provides, depend) {
+						dependEntry = entry
+						ok = true
+						break
+					}
+				}
+
+				if !ok {
+					continue
+				}
+			}
+
+			err := visit(dependEntry.PackageInfo)
+			if err != nil && verbose {
+				fmt.Printf("Circular dependency found! (%s -> %s)\n", pkgInfo.Name, dependEntry.PackageInfo.Name)
+			}
+		}
+
+		marked[pkgInfo.Name] = 2
+		sorted = append(sorted, *pkgInfo)
+
+		return nil
+	}
+
+	for _, entry := range packages {
+		if mark, _ := marked[entry.PackageInfo.Name]; mark != 2 {
+			visit(entry.PackageInfo)
+		}
+	}
+
+	// Compile all packages in order
+	for _, pkgInfo := range sorted {
+		if modifiedOnly && binaryDatabase != nil {
+			if binaryPkgInfo, ok := binaryDatabase.Entries[pkgInfo.Name]; ok && binaryPkgInfo.PackageInfo.GetFullVersion() == pkgInfo.GetFullVersion() {
+				continue
+			}
+		}
+
+		if showOrder {
+			fmt.Println(pkgInfo.Name)
+			continue
+		}
+
+		// Ensure installed packages are up-to-date
+		cmd := exec.Command(config.PrivilegeEscalatorCmd, "sh", "-c", "bpm u -y")
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			log.Fatalf("Error: could not update packages): %s", err)
+		}
+
+		// Compile source package
+		cmd = exec.Command("bpm-package", "-cdvumy")
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Dir = path.Join(repo, "source", pkgInfo.Name)
+		if err := cmd.Run(); err != nil {
+			log.Fatalf("Error: could not compile package (%s): %s", pkgInfo.Name, err)
+		}
+	}
+
+	// Ensure installed packages are up-to-date
+	cmd := exec.Command(config.PrivilegeEscalatorCmd, "sh", "-c", "bpm u -y")
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Fatalf("Error: could not update packages): %s", err)
+	}
+}
+
 func readEnvFile(repo string) error {
 	data, err := os.ReadFile(path.Join(repo, ".env"))
 	if os.IsNotExist(err) {
@@ -395,6 +535,8 @@ func listSubcommands() {
 	fmt.Println("  u, update-db        Update update source and binary databases in current repositor")
 	fmt.Println("  v, check-versions   Manage BPM repositories and databases")
 	fmt.Println("  l, list             List packages")
+	fmt.Println("  a, compile-all      Compile all packages in the current repository")
+
 }
 
 func setupFlagsAndHelp(flagset *flag.FlagSet, usage, desc string, args []string) {
