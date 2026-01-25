@@ -18,6 +18,7 @@ type PackageInfo struct {
 	Revision        int               `yaml:"revision,omitempty"`
 	Url             string            `yaml:"url,omitempty"`
 	License         string            `yaml:"license,omitempty"`
+	Maintainers     []string          `yaml:"maintainers,omitempty"`
 	Arch            string            `yaml:"architecture,omitempty"`
 	OutputArch      string            `yaml:"output_architecture,omitempty"`
 	Type            string            `yaml:"type,omitempty"`
