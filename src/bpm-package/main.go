@@ -58,6 +58,12 @@ func runChecks() {
 }
 
 func createArchive() string {
+	// Read BPM utils config
+	config, err := bpmutilsshared.ReadBPMUtilsConfig()
+	if err != nil {
+		log.Fatalf("Error: failed to read config: %s", err)
+	}
+
 	filesToInclude := make([]string, 0)
 
 	// Include base files
@@ -100,6 +106,13 @@ func createArchive() string {
 			}
 
 			pkgInfo.Downloads[i] = download
+		}
+
+		// Add default maintainer
+		if config.AddDefaultMaintainer {
+			if !slices.Contains(pkgInfo.Maintainers, config.DefaultMaintainer) {
+				pkgInfo.Maintainers = append(pkgInfo.Maintainers, config.DefaultMaintainer)
+			}
 		}
 
 		// Save yaml back to file
