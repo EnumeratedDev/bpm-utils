@@ -27,6 +27,7 @@ type PackageInfo struct {
 	RuntimeDepends  []string          `yaml:"runtime_depends,omitempty"`
 	OptionalDepends []string          `yaml:"optional_depends,omitempty"`
 	MakeDepends     []string          `yaml:"make_depends,omitempty"`
+	CheckDepends    []string          `yaml:"check_depends,omitempty"`
 	Conflicts       []string          `yaml:"conflicts,omitempty"`
 	Replaces        []string          `yaml:"replaces,omitempty"`
 	Provides        []string          `yaml:"provides,omitempty"`
