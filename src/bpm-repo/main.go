@@ -271,7 +271,6 @@ func checkVersionsFunc(repo string) {
 				encoder.Encode(pkgInfo)
 
 				// Write package information
-				fmt.Println(path.Join(dir, "pkg.info"))
 				err := os.WriteFile(path.Join(dir, "pkg.info"), data.Bytes(), 0644)
 				if err != nil {
 					log.Printf("Warning: could not write new version for package (%s) to file: %s", pkgInfo.Name, err)
@@ -280,6 +279,7 @@ func checkVersionsFunc(repo string) {
 				// Generate source package
 				cmd := exec.Command("bpm-package")
 				cmd.Stderr = os.Stderr
+				cmd.Dir = dir
 				if err := cmd.Run(); err != nil {
 					log.Printf("Warning: could not generate source pacakge (%s): %s", pkgInfo.Name, err)
 				}
