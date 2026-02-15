@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -97,6 +98,20 @@ func main() {
 		}
 
 		checkVersionsFunc(repo)
+	case "hold", "h":
+		// Setup flags and help
+		flagset := flag.NewFlagSet("hold", flag.ExitOnError)
+		flagset.Bool("get", false, "Show current value")
+		setupFlagsAndHelp(flagset, fmt.Sprintf("bpm-repo %s <options>", subcommand), "Manage BPM repositories and databases", os.Args[2:])
+		currentFlagSet = flagset
+
+		// Get current database
+		repo := bpmutilsshared.GetRepository()
+		if repo == "" {
+			log.Fatal("Error: this command may only be run inside a BPM repository")
+		}
+
+		holdPackage(repo)
 	case "compile-all", "a":
 		// Setup flags and help
 		flagset := flag.NewFlagSet("check-versions", flag.ExitOnError)
@@ -156,6 +171,7 @@ func checkVersionsFunc(repo string) {
 	type CachedVersionEntry struct {
 		LatestVersion string `yaml:"latest_version"`
 		Timestamp     int64  `yaml:"timestamp"`
+		OnHold        bool   `yaml:"on_hold,omitempty"`
 	}
 	cachedVersions := make(map[string]CachedVersionEntry)
 	data, err := os.ReadFile(path.Join(repo, ".version-cache"))
@@ -264,7 +280,7 @@ func checkVersionsFunc(repo string) {
 			// Apply new version
 			pkgInfo.Version = latestVersion
 			pkgInfo.Revision = 1
-			if apply {
+			if apply && !cachedVersions[pkgInfo.Name].OnHold {
 				var data bytes.Buffer
 				encoder := yaml.NewEncoder(&data)
 				encoder.SetIndent(2)
@@ -304,7 +320,11 @@ func checkVersionsFunc(repo string) {
 	keys := slices.Collect(maps.Keys(pkgsWithUpdates))
 	sort.Strings(keys)
 	for _, pkg := range keys {
-		fmt.Printf("Update available for package (%s): %s -> %s\n", pkg, pkgsWithUpdates[pkg].OldVersion, pkgsWithUpdates[pkg].NewVersion)
+		fmt.Printf("Update available for package (%s): %s -> %s", pkg, pkgsWithUpdates[pkg].OldVersion, pkgsWithUpdates[pkg].NewVersion)
+		if cachedVersions[pkg].OnHold {
+			fmt.Print(" (On hold)")
+		}
+		fmt.Println()
 	}
 
 	if verbose {
@@ -333,6 +353,78 @@ func checkVersionsFunc(repo string) {
 	fmt.Println("Missing script:", len(pkgsWithoutScript))
 	fmt.Println("Ignored: ", len(pkgsIgnored))
 	fmt.Println("Errors:", len(pkgsWithError))
+}
+
+func holdPackage(repo string) {
+	// Get flags
+	get, _ := currentFlagSet.GetBool("get")
+
+	// Get package name
+	pkgName := ""
+	if len(currentFlagSet.Args()) < 1 {
+		log.Fatalf("Error: no package name set")
+	} else {
+		pkgName = currentFlagSet.Arg(0)
+	}
+
+	// Ensure package exists
+	if _, err := os.Stat(path.Join(repo, "source", pkgName, "pkg.info")); err != nil {
+		log.Fatalf("Error: could not find pkg.info file in directory (%s): %s", pkgName, err)
+	}
+
+	// Read version cache
+	type CachedVersionEntry struct {
+		LatestVersion string `yaml:"latest_version"`
+		Timestamp     int64  `yaml:"timestamp"`
+		OnHold        bool   `yaml:"on_hold,omitempty"`
+	}
+	cachedVersions := make(map[string]*CachedVersionEntry)
+	data, err := os.ReadFile(path.Join(repo, ".version-cache"))
+	if err == nil {
+		err := yaml.Unmarshal(data, &cachedVersions)
+		if err != nil {
+			cachedVersions = make(map[string]*CachedVersionEntry)
+		}
+	}
+
+	// Get current on_hold value
+	if get {
+		if cachedVersion, ok := cachedVersions[pkgName]; ok && cachedVersion.OnHold {
+			fmt.Printf("Package (%s) has been put on hold.\n", pkgName)
+		} else {
+			fmt.Printf("Package (%s) has not been put on hold.\n", pkgName)
+		}
+		return
+	}
+
+	// Get boolean value
+	var value bool
+	if len(currentFlagSet.Args()) < 2 {
+		log.Fatalf("Error: no boolean value set")
+	} else {
+		value, err = strconv.ParseBool(currentFlagSet.Arg(1))
+		if err != nil {
+			log.Fatalf("Error: value (%s) is not a boolean", currentFlagSet.Arg(1))
+		}
+	}
+
+	// Set on_hold value
+	cachedVersions[pkgName].OnHold = value
+
+	// Save cached versions to file
+	data, err = yaml.Marshal(cachedVersions)
+	if err == nil {
+		err := os.WriteFile(path.Join(repo, ".version-cache"), data, 0644)
+		if err != nil {
+			log.Printf("Warning: could not write cached versions to file: %s", err)
+		}
+	}
+
+	if value {
+		fmt.Printf("Package (%s) was put on hold.\n", pkgName)
+	} else {
+		fmt.Printf("Package (%s) is no longer put on hold.\n", pkgName)
+	}
 }
 
 func listPackagesFunc(repo string) {
@@ -534,6 +626,7 @@ func listSubcommands() {
 	fmt.Println("  c, create-repo      Create a new BPM repository")
 	fmt.Println("  u, update-db        Update update source and binary databases in current repositor")
 	fmt.Println("  v, check-versions   Manage BPM repositories and databases")
+	fmt.Println("  h, hold             Prevent package from being automatically updated")
 	fmt.Println("  l, list             List packages")
 	fmt.Println("  a, compile-all      Compile all packages in the current repository")
 
