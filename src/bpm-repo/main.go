@@ -260,10 +260,17 @@ func checkVersionsFunc(repo string) {
 				continue
 			}
 
+			// Get current on_hold value
+			onHold := false
+			if v, ok := cachedVersions[pkgInfo.Name]; ok {
+				onHold = v.OnHold
+			}
+
 			// Cache latest version
 			cachedVersions[pkgInfo.Name] = CachedVersionEntry{
 				LatestVersion: latestVersion,
 				Timestamp:     time.Now().UnixMilli(),
+				OnHold:        onHold,
 			}
 		}
 
