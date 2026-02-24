@@ -581,7 +581,7 @@ func compileAllPackagesFunc(repo string) {
 		}
 
 		// Compile source package
-		cmd = exec.Command("bpm-package", "-cdvumy")
+		cmd = exec.Command("bpm-package", "-cdvusmy")
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
