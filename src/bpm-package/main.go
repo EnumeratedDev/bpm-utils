@@ -21,13 +21,14 @@ import (
 
 var compile = flag.BoolP("compile", "c", false, "Compile BPM source package")
 var verbose = flag.BoolP("verbose", "v", false, "Show additional information about the compilation process")
-var skipCheck = flag.BoolP("skip-checks", "s", false, "Skip 'check' function while compiling")
+var skipCheck = flag.Bool("skip-checks", false, "Skip 'check' function while compiling")
 var keepCompilationFiles = flag.BoolP("keep", "k", false, "Keep compilation files after successful package compilation")
 var installDepends = flag.BoolP("depends", "d", false, "Install package dependencies for compilation")
 var installPackage = flag.BoolP("install", "i", false, "Install compiled BPM package after compilation finishes")
 var compilationJobs = flag.IntP("jobs", "j", 0, "Set the amount of concurrent processes to use for source package compilation")
 var moveToBinaryDir = flag.BoolP("move", "m", false, "Move output packages to the current repository's binary directory")
 var updateInfo = flag.BoolP("update-info", "u", false, "Update the pkg.info file")
+var signPackage = flag.BoolP("sign", "s", false, "Sign package using GPG")
 var yesAll = flag.BoolP("yes", "y", false, "Accept all confirmation prompts")
 
 func main() {
@@ -149,6 +150,18 @@ func createArchive() string {
 		}
 	}
 
+	// Remove old BPM archive signatures in current directory
+	oldSignatures, err := filepath.Glob("*.sig")
+	if err != nil {
+		log.Printf("Warning: could not search for old BPM archive signatures: %s", err)
+	}
+	for _, signature := range oldSignatures {
+		err = os.Remove(signature)
+		if err != nil {
+			log.Printf("Warning: could not remove old BPM archive signature (%s): %s", signature, err)
+		}
+	}
+
 	// Create filename
 	filename := fmt.Sprintf("%s-%s-%d-%s-src.bpm", pkgInfo.Name, pkgInfo.Version, pkgInfo.Revision, pkgInfo.Arch)
 
@@ -162,6 +175,19 @@ func createArchive() string {
 	err = cmd.Run()
 	if err != nil {
 		log.Fatalf("Error: failed to create BPM source archive: %s", err)
+	}
+
+	// Sign package
+	if *signPackage {
+		cmd := exec.Command("gpg", "--detach-sign", filename)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+
+		err := cmd.Run()
+		if err != nil {
+			log.Fatalf("Error: could not sign package: %s", err)
+		}
 	}
 
 	// Get absolute path to filename
@@ -246,6 +272,14 @@ func compilePackage(archive string) {
 					if err != nil {
 						log.Printf("Warning: could not remove old binary package (%s): %s", pkgFilepath, err)
 					}
+
+					// Remove package signature
+					if _, err := os.Stat(pkgFilepath + ".sig"); err == nil {
+						err := os.Remove(pkgFilepath + ".sig")
+						if err != nil {
+							log.Printf("Warning: could not remove old binary package signature (%s): %s", pkgFilepath+".str", err)
+						}
+					}
 				}
 			}
 
@@ -264,6 +298,22 @@ func compilePackage(archive string) {
 	}
 	if repo := bpmutilsshared.GetRepository(); repo != "" && *moveToBinaryDir {
 		bpmutilsshared.UpdateDatabases(repo)
+	}
+
+	// Sign package
+	if *signPackage {
+		for k, v := range outputPkgs {
+			cmd := exec.Command("gpg", "--detach-sign", v)
+			cmd.Dir = path.Dir(v)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+
+			err := cmd.Run()
+			if err != nil {
+				log.Fatalf("Error: could not sign package (%s) at: %s", k, v)
+			}
+		}
 	}
 
 	// Print out generated packages
