@@ -1,2 +1,3 @@
-# Exclude bpm archives
+# Ignore BPM archives and signatures
 *.bpm
+*.bpm.sig
