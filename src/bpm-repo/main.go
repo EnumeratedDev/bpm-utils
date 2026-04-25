@@ -147,7 +147,7 @@ func createRepository(name, description string) {
 		log.Fatalf("Error: could not write to file: %s", err)
 	}
 
-	err = os.Mkdir(path.Join(name, "source"), 0755)
+	err = os.Mkdir(path.Join(name, "recipes"), 0755)
 	if err != nil {
 		log.Fatalf("Error: could not create directory: %s", err)
 	}
@@ -185,14 +185,14 @@ func checkVersionsFunc(repo string) {
 	directories := make([]string, 0)
 	if currentFlagSet.NArg() > 0 {
 		for _, dir := range currentFlagSet.Args() {
-			if _, err := os.Stat(path.Join(repo, "source", dir, "pkg.info")); err != nil {
+			if _, err := os.Stat(path.Join(repo, "recipes", dir, "pkg.info")); err != nil {
 				log.Fatalf("Error: could not find pkg.info file in directory (%s): %s", dir, err)
 			}
-			directories = append(directories, path.Join(repo, "source", dir))
+			directories = append(directories, path.Join(repo, "recipes", dir))
 		}
 	} else {
 		// Loop through each directory with a 'pkg.info' file
-		err := filepath.Walk(path.Join(repo, "source"), func(path string, info fs.FileInfo, err error) error {
+		err := filepath.Walk(path.Join(repo, "recipes"), func(path string, info fs.FileInfo, err error) error {
 			if filepath.Base(path) == "pkg.info" {
 				directories = append(directories, filepath.Dir(path))
 			}
@@ -375,7 +375,7 @@ func holdPackage(repo string) {
 	}
 
 	// Ensure package exists
-	if _, err := os.Stat(path.Join(repo, "source", pkgName, "pkg.info")); err != nil {
+	if _, err := os.Stat(path.Join(repo, "recipes", pkgName, "pkg.info")); err != nil {
 		log.Fatalf("Error: could not find pkg.info file in directory (%s): %s", pkgName, err)
 	}
 
@@ -435,44 +435,40 @@ func holdPackage(repo string) {
 }
 
 func listPackagesFunc(repo string) {
+	// Read package recipes
+	pkgs := bpmutilsshared.ReadRepositoryRecipes(repo)
+
 	// Read databases
-	sourceDatabase, err := bpmutilsshared.ReadDatabase(path.Join(repo, "source/database.bpmdb"))
-	if err != nil {
-		return
-	}
+	sourceDatabase, _ := bpmutilsshared.ReadDatabase(path.Join(repo, "source/database.bpmdb"))
+	binaryDatabase, _ := bpmutilsshared.ReadDatabase(path.Join(repo, "binary/database.bpmdb"))
 
-	binaryDatabase, err := bpmutilsshared.ReadDatabase(path.Join(repo, "binary/database.bpmdb"))
-	if err != nil {
-		binaryDatabase = &bpmutilsshared.BPMDatabase{}
-	}
+	for _, pkg := range pkgs {
+		fmt.Printf("%s (%s):\n", pkg.Name, pkg.Version)
 
-	// Sort database entries
-	entriesSorted := slices.Collect(maps.Values(sourceDatabase.Entries))
-	sort.Slice(entriesSorted, func(i, j int) bool {
-		return entriesSorted[i].PackageInfo.Name < entriesSorted[j].PackageInfo.Name
-	})
-
-	// Loop through each entry
-	for _, entry := range entriesSorted {
-		if len(entry.PackageInfo.SplitPackages) > 0 {
-			for _, splitPkg := range entry.PackageInfo.SplitPackages {
-				// Handle split packages
-				additionalText := ""
-				if binaryEntry, ok := binaryDatabase.Entries[splitPkg.Name]; !ok {
-					additionalText += "(Binary package missing) "
-				} else if fmt.Sprintf("%s-%d", binaryEntry.PackageInfo.Version, binaryEntry.PackageInfo.Revision) != fmt.Sprintf("%s-%d", entry.PackageInfo.Version, entry.PackageInfo.Revision) {
-					additionalText += "(Binary package version mismatch) "
+		// Show source package version
+		if sourceDatabase != nil {
+			if entry, ok := sourceDatabase.Entries[pkg.Name]; ok {
+				if entry.PackageInfo.Version == pkg.Version {
+					fmt.Printf("  Source package: %s\n", entry.PackageInfo.Version)
+				} else {
+					fmt.Printf("  Source package: %s ≠ %s (Version mismatch)\n", entry.PackageInfo.Version, pkg.Version)
 				}
-				fmt.Printf("%s %s-%d %s\n", splitPkg.Name, entry.PackageInfo.Version, entry.PackageInfo.Revision, additionalText)
+			} else {
+				fmt.Println("  Source package not found!")
 			}
-		} else {
-			additionalText := ""
-			if binaryEntry, ok := binaryDatabase.Entries[entry.PackageInfo.Name]; !ok {
-				additionalText += "(Binary package missing) "
-			} else if fmt.Sprintf("%s-%d", binaryEntry.PackageInfo.Version, binaryEntry.PackageInfo.Revision) != fmt.Sprintf("%s-%d", entry.PackageInfo.Version, entry.PackageInfo.Revision) {
-				additionalText += "(Binary package version mismatch) "
+		}
+
+		// Show binary package version
+		if binaryDatabase != nil {
+			if entry, ok := binaryDatabase.Entries[pkg.Name]; ok {
+				if entry.PackageInfo.Version == pkg.Version {
+					fmt.Printf("  Binary package: %s\n", entry.PackageInfo.Version)
+				} else {
+					fmt.Printf("  Binary package: %s ≠ %s (Version mismatch)\n", entry.PackageInfo.Version, pkg.Version)
+				}
+			} else {
+				fmt.Println("  Binary package not found!")
 			}
-			fmt.Printf("%s %s-%d %s\n", entry.PackageInfo.Name, entry.PackageInfo.Version, entry.PackageInfo.Revision, additionalText)
 		}
 	}
 }
@@ -489,27 +485,22 @@ func compileAllPackagesFunc(repo string) {
 		log.Fatalf("Error: failed to read config: %s", err)
 	}
 
-	// Ensure database is updated
-	bpmutilsshared.UpdateDatabases(repo)
+	// Read package recipes
+	pkgs := bpmutilsshared.ReadRepositoryRecipes(repo)
+	pkgsMap := make(map[string]bpmutilsshared.PackageInfo)
+	for _, pkg := range pkgs {
+		pkgsMap[pkg.Name] = pkg
+	}
 
 	// Read databases
 	sourceDatabase, err := bpmutilsshared.ReadDatabase(path.Join(repo, "source/database.bpmdb"))
-	if err != nil {
-		log.Fatalf("Error: could not read source database: %s", err)
-	}
 	binaryDatabase, _ := bpmutilsshared.ReadDatabase(path.Join(repo, "binary/database.bpmdb"))
-
-	// Get all packages from database entries
-	packages := slices.Collect(maps.Values(sourceDatabase.Entries))
-	sort.Slice(packages, func(a, b int) bool {
-		return packages[a].PackageInfo.Name < packages[b].PackageInfo.Name
-	})
 
 	// Toposort packages using Depth-first search algorithm
 	sorted := make([]bpmutilsshared.PackageInfo, 0)
 	marked := make(map[string]int) // 0 = Unmarked, 1 = Temporary mark, 2 = Permanent mark
-	var visit func(pkgInfo *bpmutilsshared.PackageInfo) error
-	visit = func(pkgInfo *bpmutilsshared.PackageInfo) error {
+	var visit func(pkgInfo bpmutilsshared.PackageInfo) error
+	visit = func(pkgInfo bpmutilsshared.PackageInfo) error {
 		if mark, _ := marked[pkgInfo.Name]; mark == 2 {
 			return nil
 		} else if mark == 1 {
@@ -524,12 +515,12 @@ func compileAllPackagesFunc(repo string) {
 
 		for _, depend := range depends {
 			// Find package in repository
-			dependEntry, ok := sourceDatabase.Entries[depend]
+			dependInfo, ok := pkgsMap[depend]
 			if !ok {
 				// Search for virtual package
-				for _, entry := range sourceDatabase.Entries {
-					if slices.Contains(entry.PackageInfo.Provides, depend) {
-						dependEntry = entry
+				for _, pkg := range pkgsMap {
+					if slices.Contains(pkg.Provides, depend) {
+						dependInfo = pkg
 						ok = true
 						break
 					}
@@ -540,30 +531,48 @@ func compileAllPackagesFunc(repo string) {
 				}
 			}
 
-			err := visit(dependEntry.PackageInfo)
+			err := visit(dependInfo)
 			if err != nil && verbose {
-				fmt.Printf("Circular dependency found! (%s -> %s)\n", pkgInfo.Name, dependEntry.PackageInfo.Name)
+				fmt.Printf("Circular dependency found! (%s -> %s)\n", pkgInfo.Name, dependInfo.Name)
 			}
 		}
 
 		marked[pkgInfo.Name] = 2
-		sorted = append(sorted, *pkgInfo)
+		sorted = append(sorted, pkgInfo)
 
 		return nil
 	}
 
-	for _, entry := range packages {
-		if mark, _ := marked[entry.PackageInfo.Name]; mark != 2 {
-			visit(entry.PackageInfo)
+	for _, pkg := range pkgsMap {
+		if mark, _ := marked[pkg.Name]; mark != 2 {
+			visit(pkg)
 		}
 	}
 
 	// Compile all packages in order
 	for _, pkgInfo := range sorted {
-		if modifiedOnly && binaryDatabase != nil {
-			if binaryPkgInfo, ok := binaryDatabase.Entries[pkgInfo.Name]; ok && binaryPkgInfo.PackageInfo.GetFullVersion() == pkgInfo.GetFullVersion() {
-				continue
+		skip := false
+
+		if modifiedOnly {
+			skip = true
+
+			// Check if source database entry is not synced
+			if sourceDatabase != nil {
+				if sourcePkgInfo, ok := sourceDatabase.Entries[pkgInfo.Name]; !ok || sourcePkgInfo.PackageInfo.GetFullVersion() != pkgInfo.GetFullVersion() {
+					skip = false
+				}
 			}
+
+			// Check if binary database entry is not synced
+			if binaryDatabase != nil {
+				if binaryPkgInfo, ok := binaryDatabase.Entries[pkgInfo.Name]; !ok || binaryPkgInfo.PackageInfo.GetFullVersion() != pkgInfo.GetFullVersion() {
+					skip = false
+				}
+			}
+		}
+
+		if skip {
+			continue
 		}
 
 		if showOrder {

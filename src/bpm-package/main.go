@@ -26,7 +26,6 @@ var keepCompilationFiles = flag.BoolP("keep", "k", false, "Keep compilation file
 var installDepends = flag.BoolP("depends", "d", false, "Install package dependencies for compilation")
 var installPackage = flag.BoolP("install", "i", false, "Install compiled BPM package after compilation finishes")
 var compilationJobs = flag.IntP("jobs", "j", 0, "Set the amount of concurrent processes to use for source package compilation")
-var moveToBinaryDir = flag.BoolP("move", "m", false, "Move output packages to the current repository's binary directory")
 var updateInfo = flag.BoolP("update-info", "u", false, "Update the pkg.info file")
 var signPackage = flag.BoolP("sign", "s", false, "Sign package using GPG")
 var yesAll = flag.BoolP("yes", "y", false, "Accept all confirmation prompts")
@@ -43,6 +42,10 @@ func main() {
 
 	if *compile {
 		compilePackage(outputFile)
+	}
+
+	if repo := bpmutilsshared.GetRepository(); repo != "" {
+		bpmutilsshared.UpdateDatabases(repo)
 	}
 }
 
@@ -138,32 +141,35 @@ func createArchive() string {
 		}
 	}
 
-	// Remove old BPM archives in current directory
-	oldArchives, err := filepath.Glob("*.bpm")
-	if err != nil {
-		log.Printf("Warning: could not search for old BPM archives: %s", err)
-	}
-	for _, bpmArchive := range oldArchives {
-		err = os.Remove(bpmArchive)
-		if err != nil {
-			log.Printf("Warning: could not remove old BPM archive (%s): %s", bpmArchive, err)
-		}
-	}
+	// Remove old package from source dir
+	if repo := bpmutilsshared.GetRepository(); repo != "" {
+		if database, err := bpmutilsshared.ReadDatabase(path.Join(repo, "source/database.bpmdb")); err == nil {
+			if entry, ok := database.Entries[pkgInfo.Name]; ok {
+				pkgFilepath := path.Join(repo, "source", entry.Filepath)
+				err := os.Remove(pkgFilepath)
+				if err != nil {
+					log.Printf("Warning: could not remove old source package (%s): %s", pkgFilepath, err)
+				}
 
-	// Remove old BPM archive signatures in current directory
-	oldSignatures, err := filepath.Glob("*.sig")
-	if err != nil {
-		log.Printf("Warning: could not search for old BPM archive signatures: %s", err)
-	}
-	for _, signature := range oldSignatures {
-		err = os.Remove(signature)
-		if err != nil {
-			log.Printf("Warning: could not remove old BPM archive signature (%s): %s", signature, err)
+				// Remove package signature
+				if _, err := os.Stat(pkgFilepath + ".sig"); err == nil {
+					err := os.Remove(pkgFilepath + ".sig")
+					if err != nil {
+						log.Printf("Warning: could not remove old source package signature (%s): %s", pkgFilepath+".str", err)
+					}
+				}
+			}
 		}
 	}
 
 	// Create filename
 	filename := fmt.Sprintf("%s-%s-%d-%s-src.bpm", pkgInfo.Name, pkgInfo.Version, pkgInfo.Revision, pkgInfo.Arch)
+	if repo := bpmutilsshared.GetRepository(); repo != "" {
+		// Create source directory
+		os.MkdirAll(path.Join(repo, "source", pkgInfo.Arch), 0755)
+
+		filename = path.Join(repo, "source", pkgInfo.Arch, filename)
+	}
 
 	// Create archive using tar
 	args := make([]string, 0)
@@ -263,7 +269,7 @@ func compilePackage(archive string) {
 		// Read generated package info
 		pkgInfo, err := bpmutilsshared.ReadPacakgeInfoFromTarball(line)
 
-		if repo := bpmutilsshared.GetRepository(); repo != "" && *moveToBinaryDir {
+		if repo := bpmutilsshared.GetRepository(); repo != "" {
 			// Remove old package from binary dir
 			if database, err := bpmutilsshared.ReadDatabase(path.Join(repo, "binary/database.bpmdb")); err == nil {
 				if entry, ok := database.Entries[pkgInfo.Name]; ok {
@@ -295,9 +301,6 @@ func compilePackage(archive string) {
 		} else {
 			outputPkgs[pkgInfo.Name] = line
 		}
-	}
-	if repo := bpmutilsshared.GetRepository(); repo != "" && *moveToBinaryDir {
-		bpmutilsshared.UpdateDatabases(repo)
 	}
 
 	// Sign package

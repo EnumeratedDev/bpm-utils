@@ -10,14 +10,12 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strings"
 
 	flag "github.com/spf13/pflag"
 	yaml "gopkg.in/yaml.v3"
 )
 
-var directory = flag.StringP("directory", "D", "", "Path to package directory")
 var name = flag.StringP("name", "n", "", "Set the package name")
 var description = flag.StringP("description", "d", "Default Package Description", "Set the description")
 var version = flag.StringP("version", "v", "1.0", "Set the package version")
@@ -26,20 +24,35 @@ var license = flag.StringP("license", "l", "", "Set the package licenses")
 var template = flag.StringP("template", "t", "gnu-configure", "Set the package template")
 var git = flag.BoolP("git", "g", true, "Create git repository")
 
+var directory = ""
+
 func main() {
 	// Setup flags and help
 	setupFlagsAndHelp("bpm-setup <options>", "Sets up files and directories for BPM source package creation")
 
+	// Trim package name
+	*name = strings.TrimSpace(*name)
+
 	// Show command help if no directory name is given
-	if *directory == "" {
-		log.Println("Error: directory flag is required")
+	if *name == "" {
+		log.Println("Error: name flag is required")
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	// Set package name to directory name if empty
-	if *name == "" {
-		*name = filepath.Base(*directory)
+	// Get current repository
+	repo := bpmutilsshared.GetRepository()
+
+	// Set directory
+	if repo != "" {
+		directory = path.Join(repo, "recipes", *name)
+	} else {
+		workDir, err := os.Getwd()
+		if err != nil {
+			log.Fatalf("Error: could not get working directory")
+		}
+
+		directory = path.Join(workDir, *name)
 	}
 
 	// run checks
@@ -62,25 +75,29 @@ func main() {
 }
 
 func runChecks() {
-	if strings.TrimSpace(*directory) == "" {
-		log.Fatalf("No directory was specified!")
+	// Check if package name is valid
+	if *name == "" {
+		log.Fatalf("Error: no package name was specified!")
 	}
 
-	if strings.TrimSpace(*name) == "" {
-		log.Fatalf("No package name was specified!")
+	// Check if parent directory is valid
+	if _, err := os.Stat(path.Dir(directory)); err != nil {
+		log.Fatalf("Error: %s is not a valid directory: %s", path.Dir(directory), err)
 	}
 
+	// Check if package directory exists
+	if _, err := os.Stat(directory); err == nil {
+		log.Fatalf("Error: %s already exists", directory)
+	}
+
+	// Check if template file is valid
 	if stat, err := os.Stat(path.Join("/etc/bpm-utils/templates/", *template)); err != nil || stat.IsDir() {
-		log.Fatalf("%s is not a valid template file!", *template)
+		log.Fatalf("Error: '%s' is not a valid template file!", *template)
 	}
 }
 
 func showSummary() {
-	absPath, err := filepath.Abs(strings.TrimSpace(*directory))
-	if err != nil {
-		log.Fatalf("Failed to determine absolute path: %s", err)
-	}
-	fmt.Printf("Setting up package directory at %s with the following information:\n", absPath)
+	fmt.Printf("Setting up package directory at %s with the following information:\n", directory)
 	fmt.Printf("Package name: %s\n", strings.TrimSpace(*name))
 	fmt.Printf("Package description: %s\n", *description)
 	fmt.Printf("Package version: %s\n", *version)
@@ -114,12 +131,8 @@ func createDirectory() {
 		log.Fatalf("Error: failed to read config: %s", err)
 	}
 
-	// Trim spaces
-	*directory = strings.TrimSpace(*directory)
-	*name = strings.TrimSpace(*name)
-
 	// Create directory
-	err = os.Mkdir(*directory, 0755)
+	err = os.Mkdir(directory, 0755)
 	if err != nil {
 		log.Fatalf("Error: could not create directory: %s", err)
 	}
@@ -153,13 +166,13 @@ func createDirectory() {
 	encoder.Encode(&pkgInfo)
 
 	// Write package info to file
-	err = os.WriteFile(path.Join(*directory, "pkg.info"), buffer.Bytes(), 0644)
+	err = os.WriteFile(path.Join(directory, "pkg.info"), buffer.Bytes(), 0644)
 	if err != nil {
 		log.Fatalf("Could not write to pkg.info: %s", err)
 	}
 
 	// Create source-files directory
-	err = os.Mkdir(path.Join(*directory, "source-files"), 0755)
+	err = os.Mkdir(path.Join(directory, "source-files"), 0755)
 	if err != nil {
 		log.Fatalf("Error: could not create directory: %s", err)
 	}
@@ -174,7 +187,7 @@ func createDirectory() {
 	// Replace variables in template file
 	input = []byte(replaceVariables(string(input)))
 
-	err = os.WriteFile(path.Join(*directory, "source.sh"), input, 0644)
+	err = os.WriteFile(path.Join(directory, "source.sh"), input, 0644)
 	if err != nil {
 		log.Fatalf("Error: could not write to source file: %s", err)
 		return
@@ -182,7 +195,7 @@ func createDirectory() {
 
 	// Create git repository
 	if git != nil && *git {
-		err = exec.Command("git", "init", *directory).Run()
+		err = exec.Command("git", "init", directory).Run()
 		if err != nil {
 			log.Fatalf("Error: could not initialize git repository: %s", err)
 		}
@@ -193,7 +206,7 @@ func createDirectory() {
 			return
 		}
 		defer defaultGitignoreFile.Close()
-		newGitignoreFile, err := os.OpenFile(path.Join(*directory, ".gitignore"), os.O_CREATE|os.O_WRONLY, 0644)
+		newGitignoreFile, err := os.OpenFile(path.Join(directory, ".gitignore"), os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Fatalf("Error: could not create .gitignore file: %s", err)
 		}
