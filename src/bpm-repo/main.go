@@ -543,7 +543,7 @@ func compileAllPackagesFunc(repo string) {
 		return nil
 	}
 
-	for _, pkg := range pkgsMap {
+	for _, pkg := range pkgs {
 		if mark, _ := marked[pkg.Name]; mark != 2 {
 			visit(pkg)
 		}
@@ -558,15 +558,44 @@ func compileAllPackagesFunc(repo string) {
 
 			// Check if source database entry is not synced
 			if sourceDatabase != nil {
-				if sourcePkgInfo, ok := sourceDatabase.Entries[pkgInfo.Name]; !ok || sourcePkgInfo.PackageInfo.GetFullVersion() != pkgInfo.GetFullVersion() {
-					skip = false
+				if len(pkgInfo.SplitPackages) != 0 {
+					sourcePkgInfo, ok := sourceDatabase.Entries[pkgInfo.Name]
+					if ok {
+						hasSplitPkg := func(name string) bool {
+							return slices.ContainsFunc(sourcePkgInfo.PackageInfo.SplitPackages, func(splitPkg *bpmutilsshared.PackageInfo) bool {
+								return name == splitPkg.Name
+							})
+						}
+
+						for _, splitPkg := range pkgInfo.SplitPackages {
+							if !hasSplitPkg(splitPkg.Name) || sourcePkgInfo.PackageInfo.GetFullVersion() != pkgInfo.GetFullVersion() {
+								skip = false
+								break
+							}
+						}
+					} else {
+						skip = false
+					}
+				} else {
+					if sourcePkgInfo, ok := sourceDatabase.Entries[pkgInfo.Name]; !ok || sourcePkgInfo.PackageInfo.GetFullVersion() != pkgInfo.GetFullVersion() {
+						skip = false
+					}
 				}
 			}
 
 			// Check if binary database entry is not synced
 			if binaryDatabase != nil {
-				if binaryPkgInfo, ok := binaryDatabase.Entries[pkgInfo.Name]; !ok || binaryPkgInfo.PackageInfo.GetFullVersion() != pkgInfo.GetFullVersion() {
-					skip = false
+				if len(pkgInfo.SplitPackages) != 0 {
+					for _, splitPkg := range pkgInfo.SplitPackages {
+						if binaryPkgInfo, ok := binaryDatabase.Entries[splitPkg.Name]; !ok || binaryPkgInfo.PackageInfo.GetFullVersion() != pkgInfo.GetFullVersion() {
+							skip = false
+							break
+						}
+					}
+				} else {
+					if binaryPkgInfo, ok := binaryDatabase.Entries[pkgInfo.Name]; !ok || binaryPkgInfo.PackageInfo.GetFullVersion() != pkgInfo.GetFullVersion() {
+						skip = false
+					}
 				}
 			}
 		}
