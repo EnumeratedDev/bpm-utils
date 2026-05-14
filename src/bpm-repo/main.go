@@ -619,11 +619,11 @@ func compileAllPackagesFunc(repo string) {
 		}
 
 		// Compile source package
-		cmd = exec.Command("bpm-package", "-cdvusmy")
+		cmd = exec.Command("bpm-package", "-cdusy")
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		cmd.Dir = path.Join(repo, "source", pkgInfo.Name)
+		cmd.Dir = path.Join(repo, "recipes", pkgInfo.Name)
 		if err := cmd.Run(); err != nil {
 			log.Fatalf("Error: could not compile package (%s): %s", pkgInfo.Name, err)
 		}
