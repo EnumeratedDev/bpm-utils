@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/drone/envsubst"
+	version "github.com/knqyf263/go-rpm-version"
 	"gopkg.in/yaml.v3"
 )
 
@@ -177,5 +178,71 @@ func (pkgDownload *PackageDownload) CalculateChecksum(pkgInfo *PackageInfo) (str
 		return strings.TrimSpace(string(checksum)), err
 	default:
 		return "", fmt.Errorf("unknown download type (%s)", pkgDownload.Type)
+	}
+}
+
+func CompareVersions(version1, version2 string) int {
+	v1 := version.NewVersion(version1)
+	v2 := version.NewVersion(version2)
+
+	return v1.Compare(v2)
+}
+
+func SplitPkgNameAndVersion(pkg string) (string, string, string) {
+	if strings.Contains(pkg, ">=") {
+		pkgSplit := strings.SplitN(pkg, ">=", 2)
+		pkgName := pkgSplit[0]
+		pkgVersion := pkgSplit[1]
+
+		return pkgName, ">=", pkgVersion
+	} else if strings.Contains(pkg, ">") {
+		pkgSplit := strings.SplitN(pkg, ">", 2)
+		pkgName := pkgSplit[0]
+		pkgVersion := pkgSplit[1]
+
+		return pkgName, ">", pkgVersion
+	} else if strings.Contains(pkg, "<=") {
+		pkgSplit := strings.SplitN(pkg, "<=", 2)
+		pkgName := pkgSplit[0]
+		pkgVersion := pkgSplit[1]
+
+		return pkgName, "<=", pkgVersion
+	} else if strings.Contains(pkg, "<") {
+		pkgSplit := strings.SplitN(pkg, "<", 2)
+		pkgName := pkgSplit[0]
+		pkgVersion := pkgSplit[1]
+
+		return pkgName, "<", pkgVersion
+	} else if strings.Contains(pkg, "=") {
+		pkgSplit := strings.SplitN(pkg, "=", 2)
+		pkgName := pkgSplit[0]
+		pkgVersion := pkgSplit[1]
+
+		return pkgName, "=", pkgVersion
+	}
+
+	return pkg, "", ""
+}
+
+func EvaluateDependency(pkg, matchVersion string) bool {
+	_, comparisonSymbol, pkgVersion := SplitPkgNameAndVersion(pkg)
+
+	switch comparisonSymbol {
+	case ">=":
+		return CompareVersions(matchVersion, pkgVersion) >= 0
+	case ">":
+		return CompareVersions(matchVersion, pkgVersion) > 0
+	case "<=":
+		return CompareVersions(matchVersion, pkgVersion) <= 0
+	case "<":
+		return CompareVersions(matchVersion, pkgVersion) < 0
+	case "=":
+		if cutPkgVersion, ok := strings.CutSuffix(pkgVersion, "*"); ok {
+			return strings.HasPrefix(matchVersion, cutPkgVersion)
+		} else {
+			return CompareVersions(matchVersion, pkgVersion) == 0
+		}
+	default:
+		return true
 	}
 }

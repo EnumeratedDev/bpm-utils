@@ -8,6 +8,9 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require github.com/drone/envsubst v1.0.3 // indirect
+require (
+	github.com/drone/envsubst v1.0.3 // indirect
+	github.com/knqyf263/go-rpm-version v0.0.0-20240918084003-2afd7dc6a38f // indirect
+)
 
 replace bpm-utils-shared => ../bpm-utils-shared

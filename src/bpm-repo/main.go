@@ -327,7 +327,11 @@ func checkVersionsFunc(repo string) {
 	keys := slices.Collect(maps.Keys(pkgsWithUpdates))
 	sort.Strings(keys)
 	for _, pkg := range keys {
-		fmt.Printf("Update available for package (%s): %s -> %s", pkg, pkgsWithUpdates[pkg].OldVersion, pkgsWithUpdates[pkg].NewVersion)
+		if bpmutilsshared.CompareVersions(pkgsWithUpdates[pkg].NewVersion, pkgsWithUpdates[pkg].OldVersion) >= 0 {
+			fmt.Printf("Update available for package (%s): %s -> %s", pkg, pkgsWithUpdates[pkg].OldVersion, pkgsWithUpdates[pkg].NewVersion)
+		} else {
+			fmt.Printf("Downgrade(?) available for package (%s): %s -> %s", pkg, pkgsWithUpdates[pkg].OldVersion, pkgsWithUpdates[pkg].NewVersion)
+		}
 		if cachedVersions[pkg].OnHold {
 			fmt.Print(" (On hold)")
 		}
