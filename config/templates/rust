@@ -1,4 +1,4 @@
-# This is the source.sh script. It is executed by BPM in a temporary directory when compiling a source package
+# This is the recipe.sh script. It is executed by BPM in a temporary directory when compiling a source package
 # BPM Expects the source code to be extracted into the automatically created 'source' directory which can be accessed using $BPM_SOURCE
 # BPM Expects the output files to be present in the automatically created 'output' directory which can be accessed using $BPM_OUTPUT
 
@@ -6,7 +6,7 @@
 # This function is used for putting downloaded files to the correct location or applying patches
 prepare() {
   cd "$BPM_SOURCE"
-  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+  cargo fetch --locked --target "$(rustc --print host-tuple)"
 }
 
 # The build function is executed in the source directory

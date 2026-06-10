@@ -185,15 +185,15 @@ func checkVersionsFunc(repo string) {
 	directories := make([]string, 0)
 	if currentFlagSet.NArg() > 0 {
 		for _, dir := range currentFlagSet.Args() {
-			if _, err := os.Stat(path.Join(repo, "recipes", dir, "pkg.info")); err != nil {
-				log.Fatalf("Error: could not find pkg.info file in directory (%s): %s", dir, err)
+			if _, err := os.Stat(path.Join(repo, "recipes", dir, "info.yml")); err != nil {
+				log.Fatalf("Error: could not find info.yml file in directory (%s): %s", dir, err)
 			}
 			directories = append(directories, path.Join(repo, "recipes", dir))
 		}
 	} else {
-		// Loop through each directory with a 'pkg.info' file
+		// Loop through each directory with a 'info.yml' file
 		err := filepath.Walk(path.Join(repo, "recipes"), func(path string, info fs.FileInfo, err error) error {
-			if filepath.Base(path) == "pkg.info" {
+			if filepath.Base(path) == "info.yml" {
 				directories = append(directories, filepath.Dir(path))
 			}
 			return nil
@@ -212,7 +212,7 @@ func checkVersionsFunc(repo string) {
 	}, 0)
 	pkgsUpToDate := 0
 	for _, dir := range directories {
-		pkgInfo, err := bpmutilsshared.ReadPacakgeInfoFromFile(path.Join(dir, "pkg.info"))
+		pkgInfo, err := bpmutilsshared.ReadPacakgeInfoFromFile(path.Join(dir, "info.yml"))
 		if err != nil {
 			log.Fatalf("Could not read package info: %s", err)
 		}
@@ -294,7 +294,7 @@ func checkVersionsFunc(repo string) {
 				encoder.Encode(pkgInfo)
 
 				// Write package information
-				err := os.WriteFile(path.Join(dir, "pkg.info"), data.Bytes(), 0644)
+				err := os.WriteFile(path.Join(dir, "info.yml"), data.Bytes(), 0644)
 				if err != nil {
 					log.Printf("Warning: could not write new version for package (%s) to file: %s", pkgInfo.Name, err)
 				}
@@ -379,8 +379,8 @@ func holdPackage(repo string) {
 	}
 
 	// Ensure package exists
-	if _, err := os.Stat(path.Join(repo, "recipes", pkgName, "pkg.info")); err != nil {
-		log.Fatalf("Error: could not find pkg.info file in directory (%s): %s", pkgName, err)
+	if _, err := os.Stat(path.Join(repo, "recipes", pkgName, "info.yml")); err != nil {
+		log.Fatalf("Error: could not find info.yml file in directory (%s): %s", pkgName, err)
 	}
 
 	// Read version cache
@@ -494,6 +494,13 @@ func compileAllPackagesFunc(repo string) {
 	pkgsMap := make(map[string]bpmutilsshared.PackageInfo)
 	for _, pkg := range pkgs {
 		pkgsMap[pkg.Name] = pkg
+
+		// Add split packages
+		for _, splitPkg := range pkg.SplitPackages {
+			if _, ok := pkgsMap[splitPkg.Name]; !ok {
+				pkgsMap[splitPkg.Name] = pkg
+			}
+		}
 	}
 
 	// Read databases
@@ -508,7 +515,7 @@ func compileAllPackagesFunc(repo string) {
 		if mark, _ := marked[pkgInfo.Name]; mark == 2 {
 			return nil
 		} else if mark == 1 {
-			return fmt.Errorf("Circular dependency found!")
+			return fmt.Errorf("circular dependency found")
 		}
 
 		marked[pkgInfo.Name] = 1
@@ -518,12 +525,15 @@ func compileAllPackagesFunc(repo string) {
 		depends = append(depends, pkgInfo.MakeDepends...)
 
 		for _, depend := range depends {
+			dependName, _, _ := bpmutilsshared.SplitPkgNameAndVersion(depend)
+
 			// Find package in repository
-			dependInfo, ok := pkgsMap[depend]
+			dependInfo, ok := pkgsMap[dependName]
+
 			if !ok {
 				// Search for virtual package
 				for _, pkg := range pkgsMap {
-					if slices.Contains(pkg.Provides, depend) {
+					if slices.Contains(pkg.Provides, dependName) {
 						dependInfo = pkg
 						ok = true
 						break
@@ -531,13 +541,24 @@ func compileAllPackagesFunc(repo string) {
 				}
 
 				if !ok {
+					// Try to see if package exists in BPM's other repositories
+					err := exec.Command("bpm", "query", "-d", depend).Run()
+					if err != nil {
+						return fmt.Errorf("could not find package (%s) in any database", depend)
+					}
 					continue
 				}
 			}
 
 			err := visit(dependInfo)
-			if err != nil && verbose {
-				fmt.Printf("Circular dependency found! (%s -> %s)\n", pkgInfo.Name, dependInfo.Name)
+			if err != nil {
+				if strings.Contains(err.Error(), "circular") {
+					if verbose {
+						fmt.Printf("Circular dependency found! (%s -> %s)\n", pkgInfo.Name, dependInfo.Name)
+					}
+				} else {
+					log.Fatalf("Error: could not resolve dependencies: %s", err)
+				}
 			}
 		}
 
@@ -559,6 +580,32 @@ func compileAllPackagesFunc(repo string) {
 
 		if modifiedOnly {
 			skip = true
+
+			// Check if required version is valid
+			for _, depend := range pkgInfo.Depends {
+				if !strings.ContainsRune(depend, '=') {
+					continue
+				}
+
+				dependName, _, _ := bpmutilsshared.SplitPkgNameAndVersion(depend)
+
+				if !bpmutilsshared.EvaluateDependency(depend, pkgsMap[dependName].Version) {
+					skip = false
+					break
+				}
+			}
+			for _, depend := range pkgInfo.MakeDepends {
+				if !strings.ContainsRune(depend, '=') {
+					continue
+				}
+
+				dependName, _, _ := bpmutilsshared.SplitPkgNameAndVersion(depend)
+
+				if !bpmutilsshared.EvaluateDependency(depend, pkgsMap[dependName].Version) {
+					skip = false
+					break
+				}
+			}
 
 			// Check if source database entry is not synced
 			if sourceDatabase != nil {
@@ -634,12 +681,14 @@ func compileAllPackagesFunc(repo string) {
 	}
 
 	// Ensure installed packages are up-to-date
-	cmd := exec.Command(config.PrivilegeEscalatorCmd, "sh", "-c", "bpm u -y")
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		log.Fatalf("Error: could not update packages): %s", err)
+	if !showOrder {
+		cmd := exec.Command(config.PrivilegeEscalatorCmd, "sh", "-c", "bpm u -y")
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			log.Fatalf("Error: could not update packages): %s", err)
+		}
 	}
 }
 

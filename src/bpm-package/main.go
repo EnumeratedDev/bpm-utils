@@ -26,7 +26,7 @@ var keepCompilationFiles = flag.BoolP("keep", "k", false, "Keep compilation file
 var installDepends = flag.BoolP("depends", "d", false, "Install package dependencies for compilation")
 var installPackage = flag.BoolP("install", "i", false, "Install compiled BPM package after compilation finishes")
 var compilationJobs = flag.IntP("jobs", "j", 0, "Set the amount of concurrent processes to use for source package compilation")
-var updateInfo = flag.BoolP("update-info", "u", false, "Update the pkg.info file")
+var updateInfo = flag.BoolP("update-info", "u", false, "Update the info.yml file")
 var signPackage = flag.BoolP("sign", "s", false, "Sign package using GPG")
 var yesAll = flag.BoolP("yes", "y", false, "Accept all confirmation prompts")
 
@@ -50,14 +50,14 @@ func main() {
 }
 
 func runChecks() {
-	// Check if pkg.info file exists
-	if stat, err := os.Stat("pkg.info"); err != nil || !stat.Mode().IsRegular() {
-		log.Fatalf("Error: pkg.info does not exist or is not a regular file")
+	// Check if info.yml file exists
+	if stat, err := os.Stat("info.yml"); err != nil || !stat.Mode().IsRegular() {
+		log.Fatalf("Error: info.yml does not exist or is not a regular file")
 	}
 
-	// Check if source.sh file exists
-	if stat, err := os.Stat("source.sh"); err != nil || !stat.Mode().IsRegular() {
-		log.Fatalf("Error: pkg.info does not exist or is not a regular file")
+	// Check if recipe.sh file exists
+	if stat, err := os.Stat("recipe.sh"); err != nil || !stat.Mode().IsRegular() {
+		log.Fatalf("Error: info.yml does not exist or is not a regular file")
 	}
 }
 
@@ -71,7 +71,7 @@ func createArchive() string {
 	filesToInclude := make([]string, 0)
 
 	// Include base files
-	filesToInclude = append(filesToInclude, "pkg.info", "source.sh")
+	filesToInclude = append(filesToInclude, "info.yml", "recipe.sh")
 
 	// Check if non-empty source-files directory exists and include it
 	if stat, err := os.Stat("source-files"); err == nil && stat.IsDir() {
@@ -90,13 +90,13 @@ func createArchive() string {
 		}
 	}
 
-	// Read pkg.info file
-	pkgInfo, err := bpmutilsshared.ReadPacakgeInfoFromFile("pkg.info")
+	// Read info.yml file
+	pkgInfo, err := bpmutilsshared.ReadPacakgeInfoFromFile("info.yml")
 	if err != nil {
 		log.Fatalf("Error: could not read package info: %s", err)
 	}
 
-	// Update pkg.info file
+	// Update info.yml file
 	if *updateInfo {
 		// Update download checksums
 		for i, download := range pkgInfo.Downloads {
@@ -128,16 +128,16 @@ func createArchive() string {
 			log.Fatalf("Could not marshal package info: %s", err)
 		}
 
-		// Stat pkg.info
-		stat, err := os.Stat("pkg.info")
+		// Stat info.yml
+		stat, err := os.Stat("info.yml")
 		if err != nil {
-			log.Fatalf("Could not stat pkg.info: %s", err)
+			log.Fatalf("Could not stat info.yml: %s", err)
 		}
 
 		// Write package info back to file
-		err = os.WriteFile("pkg.info", data.Bytes(), stat.Mode().Perm())
+		err = os.WriteFile("info.yml", data.Bytes(), stat.Mode().Perm())
 		if err != nil {
-			log.Fatalf("Could not write package info to pkg.info: %s", err)
+			log.Fatalf("Could not write package info to info.yml: %s", err)
 		}
 	}
 
@@ -172,10 +172,12 @@ func createArchive() string {
 	}
 
 	// Create archive using tar
-	args := make([]string, 0)
-	args = append(args, "-c", "--owner=0", "--group=0", "--no-same-owner", "-f", filename)
-	args = append(args, filesToInclude...)
-	cmd := exec.Command("tar", args...)
+	cmd := exec.Command("tar", "cf", filename,
+		"--sort=name",
+		"--pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime",
+		"--mtime=UTC 1970-01-01",
+		"--owner=0", "--group=0", "--numeric-owner")
+	cmd.Args = append(cmd.Args, filesToInclude...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()

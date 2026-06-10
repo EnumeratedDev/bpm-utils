@@ -85,7 +85,7 @@ func (pkgInfo *PackageInfo) GetFullVersion() string {
 
 func ReadPacakgeInfoFromTarball(path string) (*PackageInfo, error) {
 	// Extract package info using tar
-	cmd := exec.Command("tar", "-x", "-f", path, "pkg.info", "-O")
+	cmd := exec.Command("tar", "-x", "-f", path, "info.yml", "-O")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, err

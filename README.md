@@ -33,7 +33,7 @@ Creating a package for BPM with these utilities is simple
 bpm-setup -D my_package
 ```
 2) This will create a directory named `my_package` containing all files required for bpm package creation
-3) You may wish to edit the pkg.info metedata file inside the newly created directory to include dependencies or add/change other information. Here's an example of what a metedata file could look like
+3) You may wish to edit the info.yml metedata file inside the newly created directory to include dependencies or add/change other information. Here's an example of what a metedata file could look like
 ```yaml
 name: my_package
 description: My package's description
@@ -61,9 +61,9 @@ downloads:
     checksum: 9d19c8884cb22a594ba06a4caa6a3088e15ddfd4f3ede8c3b9e8f5cbb5a4a7a8
 ```
 
-4) If you would like to bundle patches or other files with your package place them in the 'source-files' directory. They will be extracted to the same location as the source.sh file during compilation
-5) You now need to edit your source.sh file which contains the compilation instructions for your package, the default source template comments should explain the basic process of compiling your program and how to edit it
-6) When you are done editing your source.sh script run the following command to create a BPM source package archive. You may run the `bpm-package` command with no arguments to get an explanation of what each flag does
+4) If you would like to bundle patches or other files with your package place them in the 'source-files' directory. They will be extracted to the same location as the recipe.sh file during compilation
+5) You now need to edit your recipe.sh file which contains the compilation instructions for your package, the default source template comments should explain the basic process of compiling your program and how to edit it
+6) When you are done editing your recipe.sh script run the following command to create a BPM source package archive. You may run the `bpm-package` command with no arguments to get an explanation of what each flag does
 ```
 bpm-package
 ```

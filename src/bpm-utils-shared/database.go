@@ -72,7 +72,7 @@ func GenerateDatabase(path string) error {
 
 		// Get package installed size
 		if entry.PackageInfo.Type == "binary" {
-			cmd := exec.Command("tar", "xf", packagePath, "pkg.files", "-O")
+			cmd := exec.Command("tar", "xf", packagePath, "files.txt", "-O")
 			output, err := cmd.Output()
 			if err != nil {
 				return err
@@ -85,7 +85,7 @@ func GenerateDatabase(path string) error {
 				}
 				stringEntry := strings.Split(line, " ")
 				if len(stringEntry) < 5 {
-					return fmt.Errorf("pkg.files is not formatted correctly")
+					return fmt.Errorf("files.txt is not formatted correctly")
 				}
 				size, err := strconv.ParseInt(stringEntry[len(stringEntry)-1], 10, 64)
 				if err != nil {

@@ -34,7 +34,7 @@ func ReadRepositoryRecipes(repository string) []PackageInfo {
 
 	pkgs := make([]PackageInfo, 0)
 	for _, dir := range recipeDirs {
-		pkgInfoPath := path.Join(repository, "recipes", dir.Name(), "pkg.info")
+		pkgInfoPath := path.Join(repository, "recipes", dir.Name(), "info.yml")
 		if _, err := os.Stat(pkgInfoPath); err != nil {
 			continue
 		}

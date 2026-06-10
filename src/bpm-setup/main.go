@@ -166,9 +166,9 @@ func createDirectory() {
 	encoder.Encode(&pkgInfo)
 
 	// Write package info to file
-	err = os.WriteFile(path.Join(directory, "pkg.info"), buffer.Bytes(), 0644)
+	err = os.WriteFile(path.Join(directory, "info.yml"), buffer.Bytes(), 0644)
 	if err != nil {
-		log.Fatalf("Could not write to pkg.info: %s", err)
+		log.Fatalf("Could not write to info.yml: %s", err)
 	}
 
 	// Create source-files directory
@@ -187,7 +187,7 @@ func createDirectory() {
 	// Replace variables in template file
 	input = []byte(replaceVariables(string(input)))
 
-	err = os.WriteFile(path.Join(directory, "source.sh"), input, 0644)
+	err = os.WriteFile(path.Join(directory, "recipe.sh"), input, 0644)
 	if err != nil {
 		log.Fatalf("Error: could not write to source file: %s", err)
 		return
